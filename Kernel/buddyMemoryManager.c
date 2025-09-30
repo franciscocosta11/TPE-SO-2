@@ -18,7 +18,7 @@ typedef struct FreeBlock
 	struct FreeBlock *next;
 } FreeBlock;
 
-static FreeBlock *free_lists[MAX_ORDER - MIN_ORDER + 1];
+static FreeBlock *free_lists[MAX_ORDER + 1]; // ! cambiar para que sea de max - min + 1 
 
 static void addBlockToFreelist(void *blockPtr, int order)
 {
@@ -27,7 +27,6 @@ static void addBlockToFreelist(void *blockPtr, int order)
 	free_lists[order] = newBlock;
 }
 
-// CAMBIO 2: Modificar calculate_order para incluir el tamaño del header.
 static int calculate_order(size_t size)
 {
 	if (size == 0)

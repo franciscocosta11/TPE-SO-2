@@ -4,9 +4,9 @@
 
 | Name                   | Student ID | Email                      |
 |------------------------|------------|----------------------------|
-| Lucia Oliveto          | 64646      | loliveto@itba.edu.ar       |
-| Máximo Wehncke         | 64018      | mwehncke@itba.edu.ar       |
-| Tomas Pietravallo      | 64288      | tpietravallo@itba.edu.ar   |
+| Francisco Costa        | 65202      | frcosta@itba.edu.ar        |
+| Roman Salerno          | 65145      | rsalerno@itba.edu.ar       |
+| Tiago Heras            | 65627      | theras@itba.edu.ar         |
 
 To see available commands, [please refer to the user manual](https://docs.google.com/document/d/1ZWmG98adobSHLwyexbFj743G0-Je5KMigvoO34VTcoc/edit?usp=sharing).
 

@@ -12,5 +12,4 @@ void *allocMemory(const size_t size);
 void freeMemory(void *blockAddress);
 
 // char *consultMemory(void);
-
 #endif
