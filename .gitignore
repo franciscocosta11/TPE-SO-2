@@ -1,0 +1,25 @@
+# Binary Files
+*.bin
+*.sys
+
+# The images
+*.img
+*.qcow2
+*.vmdk
+
+# Object files
+*.o
+*.a
+*.so
+
+# Bash
+.bash_history
+
+# VSC
+.vscode
+
+# macos
+.DS_Store
+
+# zip files
+*.zip
