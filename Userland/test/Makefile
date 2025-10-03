@@ -1,20 +1,23 @@
 include ./include/Makefile.inc
 
-SOURCES := $(wildcard *.c) ../../Kernel/buddyMemoryManager.c
+MM_STRATEGY ?= MEMORY_MANAGER_SIMPLE
+MM_DEFINE := -DMEMORY_MANAGER_STRATEGY=$(MM_STRATEGY)
+
+SOURCES := $(wildcard *.c) ../../Kernel/MemoryManager.c ../../Kernel/MemoryManager.c
 OBJECTS := $(SOURCES:.c=.o)
 TARGET  := MemoryManagerTest
 TEST_MM_TARGET := test_mm
 
 all: $(TARGET) $(TEST_MM_TARGET)
 
-$(TARGET): AllTest.o CuTest.o MemoryManagerTest.o ../../Kernel/buddyMemoryManager.o
+$(TARGET): AllTest.o CuTest.o MemoryManagerTest.o ../../Kernel/MemoryManager.o ../../Kernel/MemoryManager.o
 	$(LINKER) $(LINKER_FLAGS) $^ -o ../$(TARGET).out
 
-$(TEST_MM_TARGET): test_mm.o test_util.o test_mm_main.o ../../Kernel/buddyMemoryManager.o
+$(TEST_MM_TARGET): test_mm.o test_util.o test_mm_main.o ../../Kernel/MemoryManager.o ../../Kernel/MemoryManager.o
 	$(LINKER) $(LINKER_FLAGS) $^ -o ../$(TEST_MM_TARGET).out
 
 %.o : %.c
-	$(COMPILER) $< $(COMPILER_FLAGS) -o $@
+	$(COMPILER) $< $(COMPILER_FLAGS) $(MM_DEFINE) -o $@
 
 clean:
 	@rm -rf $(OBJECTS)
