@@ -1,12 +1,10 @@
 // process.c — Gestión de procesos (PCB + tabla + helpers)
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "fonts.h"
 #include "process.h"
 #include "MemoryManager.h"
 
@@ -82,7 +80,7 @@ int create_process(const char *name,
 
     int slot = find_free_slot();
     if (slot < 0) {
-        fprintf(stderr, "[Kernel] Sin slots de proceso disponibles\n");
+        print("[Kernel] Sin slots de proceso disponibles\n");
         return -1;
     }
 
@@ -99,14 +97,17 @@ int create_process(const char *name,
 
     // Copia de nombre segura
     size_t cap = sizeof(pcb->name);
-    strncpy(pcb->name, name, cap - 1);
-    pcb->name[cap - 1] = '\0';
+    size_t i = 0;
+    for (; i < cap - 1 && name[i] != '\0'; i++) {
+        pcb->name[i] = name[i];
+    }
+    pcb->name[i] = '\0';
 
     // 1) Reservar memoria para el STACK del proceso
     pcb->stack_size  = PROCESS_STACK_SIZE;
     pcb->stack_base  = allocMemory(pcb->stack_size);
     if (pcb->stack_base == NULL) {
-        fprintf(stderr, "[Kernel] Sin memoria para stack de PID %d (%s)\n", pcb->pid, pcb->name);
+        // fprint( "[Kernel] Sin memoria para stack de PID %d (%s)\n", pcb->pid, pcb->name); --> no podemos usar fprintf
         clear_pcb(pcb);
         return -1;
     }
@@ -117,12 +118,16 @@ int create_process(const char *name,
     setup_initial_context(pcb, entry_point);
 
     // 3) Inicializar recursos IPC por PID (según tu TPE)
-    pcb->shared_mem_id = init_shared_memory(pcb->pid);
-    pcb->pipe_in_fd    = create_pipe_in(pcb->pid);
-    pcb->pipe_out_fd   = create_pipe_out(pcb->pid);
+    pcb->shared_mem_id = -1;
+    pcb->pipe_in_fd    = -1;
+    pcb->pipe_out_fd   = -1;
     // si usás semáforos por proceso, crealos acá
 
-    printf("[Kernel] Proceso %s (PID %d) creado, READY\n", pcb->name, pcb->pid);
+    print("[Kernel] Proceso ");
+    print(pcb->name);
+    print(" (PID ");
+    printDec((uint64_t)pcb->pid);
+    print(") creado, READY\n");
     return pcb->pid;
 }
 
@@ -183,24 +188,19 @@ void terminate_process(int pid) {
         pcb_t *pcb = &process_table[i];
         if (pcb->pid == pid) {
             // liberar IPC asociados
-            if (pcb->shared_mem_id >= 0) {
-                release_shared_memory(pcb->shared_mem_id);
-                pcb->shared_mem_id = -1;
-            }
-            if (pcb->pipe_in_fd >= 0) {
-                close_pipe(pcb->pipe_in_fd);
-                pcb->pipe_in_fd = -1;
-            }
-            if (pcb->pipe_out_fd >= 0) {
-                close_pipe(pcb->pipe_out_fd);
-                pcb->pipe_out_fd = -1;
-            }
+            pcb->shared_mem_id = -1;
+            pcb->pipe_in_fd = -1;
+            pcb->pipe_out_fd = -1;
             // liberar stack si lo reservamos nosotros
             if (pcb->stack_owned && pcb->stack_base) {
                 freeMemory(pcb->stack_base);
             }
 
-            printf("[Kernel] Proceso PID %d (%s) finalizado\n", pcb->pid, pcb->name);
+            print("[Kernel] Proceso PID ");
+            printDec((uint64_t)pcb->pid);
+            print(" (");
+            print(pcb->name);
+            print(") finalizado\n");
             clear_pcb(pcb);
             return;
         }
@@ -223,15 +223,46 @@ const char* state_to_string(process_state_t s) {
 }
 
 void print_process_table(void) {
-    printf(" PID | STATE      | PRIO | FG | PARENT |   SHM  | IN  | OUT | NAME\n");
-    printf("-----+------------+------+----+--------+--------+-----+-----+-----------------\n");
+    print(" PID | STATE      | PRIO | FG | PARENT |   SHM  | IN  | OUT | NAME\n");
+    print("-----+------------+------+----+--------+--------+-----+-----+-----------------\n");
     for (int i = 0; i < MAX_PROCESSES; i++) {
         pcb_t *p = &process_table[i];
         if (p->state == UNUSED) continue;
-        printf("%4d | %-10s | %4u | %2u | %6d | %6d | %3d | %3d | %s\n",
-               p->pid, state_to_string(p->state),
-               p->priority, p->foreground ? 1 : 0, p->parent_pid,
-               p->shared_mem_id, p->pipe_in_fd, p->pipe_out_fd, p->name);
+        print(" ");
+        printDec((uint64_t)p->pid);
+        print(" | ");
+        print(state_to_string(p->state));
+        print(" | ");
+        printDec((uint64_t)p->priority);
+        print(" | ");
+        print(p->foreground ? "1" : "0");
+        print(" | ");
+        if (p->parent_pid >= 0) {
+            printDec((uint64_t)p->parent_pid);
+        } else {
+            print("-1");
+        }
+        print(" | ");
+        if (p->shared_mem_id >= 0) {
+            printDec((uint64_t)p->shared_mem_id);
+        } else {
+            print("-1");
+        }
+        print(" | ");
+        if (p->pipe_in_fd >= 0) {
+            printDec((uint64_t)p->pipe_in_fd);
+        } else {
+            print("-1");
+        }
+        print(" | ");
+        if (p->pipe_out_fd >= 0) {
+            printDec((uint64_t)p->pipe_out_fd);
+        } else {
+            print("-1");
+        }
+        print(" | ");
+        print(p->name);
+        print("\n");
     }
 }
 

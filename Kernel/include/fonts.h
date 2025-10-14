@@ -42,3 +42,4 @@ uint32_t getTextColor(void);
 uint32_t getBackgroundColor(void);
 
 #endif
+

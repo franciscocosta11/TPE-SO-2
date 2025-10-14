@@ -14,3 +14,4 @@ uint16_t getWindowHeight(void);
 void scrollVideoMemoryUp(uint16_t scroll, uint32_t fillColor);
 
 #endif
+

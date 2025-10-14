@@ -1,3 +1,10 @@
+#ifndef PROCESS_H
+#define PROCESS_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
 // process.h (fragmento mínimo esperado)
 
 typedef enum {
@@ -49,3 +56,5 @@ void     yield_current_process(void);
 void     terminate_process(int pid);
 void     print_process_table(void);
 const char* state_to_string(process_state_t s);
+
+#endif // PROCESS_H

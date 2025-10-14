@@ -10,8 +10,6 @@
     #include <ansiColors.h>
 #endif
 
-static void * const snakeModuleAddress = (void*)0x500000;
-
 #define MAX_BUFFER_SIZE 1024
 #define HISTORY_SIZE 10
 
@@ -30,7 +28,6 @@ int font(void);
 int help(void);
 int history(void);
 int man(void);
-int snake(void);
 int regs(void);
 int time(void);
 
@@ -57,7 +54,6 @@ Command commands[] = {
     { .name = "invop",          .function = (int (*)(void))(unsigned long long)_invalidopcode,  .description = "Generates an invalid Opcode exception" },
     { .name = "regs",           .function = (int (*)(void))(unsigned long long)regs,            .description = "Prints the register snapshot, if any" },
     { .name = "man",            .function = (int (*)(void))(unsigned long long)man,             .description = "Prints the description of the provided command" },
-    { .name = "snake",          .function = (int (*)(void))(unsigned long long)snake,           .description = "Launches the snake game" },
     { .name = "time",           .function = (int (*)(void))(unsigned long long)time,            .description = "Prints the current time" },
 };
 
@@ -279,6 +275,3 @@ int regs(void) {
     return 0;
 }
 
-int snake(void) {
-    return exec(snakeModuleAddress);
-}
