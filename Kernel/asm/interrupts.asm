@@ -20,6 +20,7 @@ EXTERN irqDispatcher
 EXTERN syscallDispatcher
 EXTERN exceptionDispatcher
 EXTERN getStackBase
+EXTERN schedule
 
 SECTION .text
 
@@ -159,9 +160,23 @@ picSlaveMask:
 	pop rbp
 	ret
 
-; 8254 Timer (Timer Tick)
+; ! 8254 Timer (Timer Tick) --> CHEQUEAR ESTO!!!! 
 _irq00Handler:
-	irqHandlerMaster 0
+	pushState
+
+	mov rdi, 0 ; pass IRQ number to dispatcher (timer tick)
+	call irqDispatcher
+
+	mov rdi, rsp ; pass saved context to scheduler
+	call schedule
+	mov rsp, rax
+
+	; signal pic EOI (End of Interrupt)
+	mov al, 20h
+	out 20h, al
+
+	popState
+	iretq
 
 ; Keyboard
 _irq01Handler:

@@ -1,51 +1,110 @@
-// process.h (fragmento mínimo esperado)
+#ifndef PROCESS_H
+#define PROCESS_H
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+extern int currentPid; // el primer proceso current va a ser el primero en inicializarse
+extern int availableProcesses;
+
+#define MIN_PRIORITY 0
+#define MAX_PRIORITY 3 
+
+// Configuración
+#define MAX_PROCESSES 16
+#define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
+
+/** @enum ProcessState
+ *  @brief Estados posibles de un proceso (MVP).
+ */
 typedef enum {
-    UNUSED = 0,
-    NEW, // el negro no banca
-    READY,
-    RUNNING,
-    BLOCKED,
-    TERMINATED
-} process_state_t;
+    READY,      
+    RUNNING,    
+    TERMINATED, 
+    BLOCKED     
+} ProcessState;
 
-typedef struct pcb {
-    int      pid;
-    process_state_t state;
 
-    // Identidad y control
-    char     name[32];
-    uint8_t  priority;
-    bool     foreground;
-    int      parent_pid;
-    double   cpu_time;
+/** @struct Process
+ *  @brief PCB mínimo usado por el scheduler.
+ *
+ *  Campos principales:
+ *   - Pid: identificador del proceso.
+ *   - State: estado actual del proceso.
+ *   - StackBase/StackSize: región de stack reservada para el proceso.
+ *   - Ctx: puntero opaco al contexto guardado.
+ *   - Next: enlace simple para colas READY.
+ *   - Entry/Arg: punto de entrada y argumento inicial del proceso.
+ */
+typedef struct Process {
+    int            pid;          // identificador del proceso
+    ProcessState   state;        // estado actual del proceso (ready running blocked etc)
 
-    // Stack del proceso
-    void    *stack_base;
-    size_t   stack_size;
-    bool     stack_owned;   // true si lo reservó el kernel y hay que liberarlo
-    void    *sp;            // puntero de pila efectivo para el dispatcher
+    void*          stackBase;    // base del stack --> para la posterior liberacion
+    size_t         stackSize;    // tamaÑo del stack
+    void*          ctx;          /**< Puntero opaco al contexto guardado */
+    int priority;
 
-    // Punto de entrada (función "main" del proceso)
-    void   (*entry_point)(void);
+    struct Process* Next;        // siguiente en la lista
 
-    // IPC (ajustá a tu TPE)
-    int      shared_mem_id;
-    int      pipe_in_fd;
-    int      pipe_out_fd;
+    void         (*Entry)(void*);//entry point
+    void*          Arg;          // argumento inicial
+} Process;
 
-    // Si tuvieras un contexto de CPU explícito, agregalo:
-    // cpu_context_t ctx;
-} pcb_t;
 
-// API del módulo
-void     init_process_table(void);
-int      create_process(const char *name, uint8_t priority, bool foreground, void (*entry_point)(void));
-void     set_process_state(int pid, process_state_t new_state);
-pcb_t*   get_next_ready_process(void);
-void     set_current_process(pcb_t *p);
-pcb_t*   get_current_process(void);
-void     yield_current_process(void);
-void     terminate_process(int pid);
-void     print_process_table(void);
-const char* state_to_string(process_state_t s);
+extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
+
+/**
+ * @brief Inicializa el subsistema de procesos.
+ *
+ * Debe dejar la tabla de procesos en estado limpio y preparar cualquier
+ * estructura interna (cursor del scheduler, next PID, etc.).
+ */
+void initProcessSystem(void);
+
+
+/**
+ * @brief Crea un nuevo proceso y lo deja listo para ser scheduleado.
+ *
+ * @param Entry      Puntero a la función que el proceso ejecutará.
+ * @param Arg        Argumento que se pasará a Entry al arrancar.
+ * @param StackBase  Dirección de memoria reservada para el stack del proceso.
+ * @param StackSize  Tamaño en bytes del stack apuntado por StackBase.
+ * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
+ *         slots libres o stack inválido).
+ */
+Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t StackSize);
+
+
+/**
+ * @brief Termina el proceso actual con el código de salida indicado.
+ *
+ * @param ExitCode Código numérico de salida del proceso.
+ */
+void exitCurrentProcess(int ExitCode);
+
+//! Agregar comentario
+int killProcess(int pid);
+
+// ============= HELPERS =============
+
+/**
+ * @brief Devuelve el PCB del proceso actualmente en ejecución.
+ *
+ * Utilidad para debugging y para el dispatcher cuando necesita acceder al
+ * proceso activo.
+ *
+ * @return Puntero al `Process` en ejecución o NULL si no hay ninguno.
+ */
+Process* getCurrentProcess(void);
+
+/**
+ * @brief Devuelve el PID del proceso actualmente en ejecución.
+ *
+ * @return PID del proceso actual o -1 si no hay proceso en ejecución.
+ */
+int getCurrentPid(void);
+
+#endif // PROCESS_H
+

@@ -19,6 +19,6 @@ clean:
 	cd Snake; make clean
 	cd libc; make clean
 	cd libsys; make clean
-	rm -rf *.bin *.o *.so *.a
+	rm -rf *.bin *.o *.so *.a *.out
 
 .PHONY: libc libsys shell snake all clean
