@@ -9,11 +9,26 @@
 #include "process.h"
 #include "MemoryManager.h"
 #include "scheduler.h"
+// Para _hlt usado en el trampolín
+#include "interrupts.h"
 
 int currentPid = 0; // el primer proceso current va a ser el primero en inicializarse
 int availableProcesses = 0;
 
 Process processTable[MAX_PROCESSES]; // tabla de procesos
+
+// Trampolín de arranque: se entra aquí al primer cambio de contexto de un
+// proceso recién creado. Llama a la entry y, si retorna, termina el proceso.
+static void processBootstrap(void) {
+    Process* p = getCurrentProcess();
+    if (p && p->entry) {
+        p->entry(p->Arg);
+    }
+    // Si retorna, finalizar ordenadamente
+    exitCurrentProcess(0);
+    // No debería volver
+    for(;;) { _hlt(); }
+}
 
 void initProcessSystem(void) {
     for (int i = 0; i < MAX_PROCESSES; i++) {
@@ -74,6 +89,14 @@ Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t 
     }
 
     if (availableProcesses > 0) availableProcesses--;
+    // Contexto inicial: usamos contextSwitchTo (mov rsp, ctx; ret).
+    // Por lo tanto, ctx debe apuntar a una pila cuyo tope contenga la
+    // dirección de retorno. Esa dirección será nuestro trampolín.
+    uint8_t* top = (uint8_t*)p->stackBase + p->stackSize;
+    uintptr_t aligned = ((uintptr_t)top) & ~((uintptr_t)0xF);
+    uint64_t* sp = (uint64_t*)aligned;
+    *(--sp) = (uint64_t)processBootstrap; // ret -> processBootstrap
+    p->ctx = (void*)sp;
 
     schedulerAddProcess(p);
 

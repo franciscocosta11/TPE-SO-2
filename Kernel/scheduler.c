@@ -168,6 +168,9 @@ void startFirstProcess(void) {
     if (current==NULL)
         return;
 
+    current->state = RUNNING;
+    currentProcess = current;
+    currentPid = current->pid;
+    // Salta al contexto inicial del proceso (rsp=ctx; ret)
     contextSwitchTo((void*)current->ctx);
-    current->state=READY;
 }
