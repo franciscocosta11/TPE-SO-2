@@ -76,6 +76,32 @@ void schedulerAddProcess(Process* process) {
     countReadyQueue[priority]++;
 }
 
+void* schedule(void* savedContext) {
+    Process* running = currentProcess;
+
+    if (running != NULL && savedContext != NULL) {
+        running->ctx = savedContext;
+
+        if (running->state == RUNNING) {
+            running->state = READY;
+            schedulerAddProcess(running);
+        }
+    }
+
+    Process* next = pickNext();
+    if (next == NULL) {
+        currentProcess = NULL;
+        currentPid = 0;
+        return savedContext;
+    }
+
+    next->state = RUNNING;
+    currentProcess = next;
+    currentPid = next->pid;
+
+    return next->ctx;
+}
+
 //! Analizar si doy mas prioridad a 0 que a 3 o viceversa. busca de mayor a menor prioridad. Devuelve el primero en la lista de la primer prioridad no vacia
 Process* pickNext(void) {
     for (int i = MAX_PRIORITIES - 1; i >= 0; i--) {

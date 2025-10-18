@@ -21,12 +21,16 @@ typedef struct processQueue {
 void initScheduler(void);
 
 /**
- * @brief Inserta un proceso en la cola READY correspondiente a su prioridad.
+ * @brief Núcleo del scheduler llamado desde la interrupción de timer.
  *
- * @param process Proceso que pasará a estar listo para ejecutar. Si es NULL se
- *        ignora la petición.
+ * Actualiza el PCB del proceso en ejecución con el contexto `savedContext`,
+ * reencola si corresponde y selecciona el próximo proceso listo. Devuelve el
+ * stack/contexto que debe cargarse en `rsp` antes de retornar del handler.
+ *
+ * @param savedContext Stack del proceso interrumpido (valor de `rsp` guardado).
+ * @return Puntero al contexto del proceso que continuará ejecutándose.
  */
-void schedule(Process* process);
+void* schedule(void* savedContext);
 
 /**
  * @brief Elimina un proceso concreto de la cola READY en la que se encuentre.
