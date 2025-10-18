@@ -19,11 +19,11 @@ void initProcessSystem(void) {
     for (int i = 0; i < MAX_PROCESSES; i++) {
         processTable[i].pid = 0; /* pid 0 = libre */
         processTable[i].state = TERMINATED;
-        processTable[i].Entry = NULL;
+        processTable[i].entry = NULL;
         processTable[i].Arg = NULL;
         processTable[i].stackBase = NULL;
         processTable[i].stackSize = 0;
-        processTable[i].Next = NULL;
+        processTable[i].next = NULL;
         processTable[i].priority = MIN_PRIORITY;
         processTable[i].ctx = NULL;
     }
@@ -51,9 +51,9 @@ Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t 
     Process *p = &processTable[slot];
     p->pid = slot + 1; /* pid simple: índice+1 */
     p->state = READY;
-    p->Entry = Entry;
+    p->entry = Entry;
     p->Arg = Arg;
-    p->Next = NULL;
+    p->next = NULL;
     p->priority = MIN_PRIORITY;
 
     /* Stack: usar StackBase si se pasa, sino reservar con MemoryManager */
@@ -80,8 +80,8 @@ Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t 
     return p;
 }
 
-void exitCurrentProcess(int ExitCode) {
-    (void) ExitCode;
+void exitCurrentProcess(int exitCode) {
+    (void) exitCode;
     int pid = getCurrentPid();
     if (pid <= 0) return;
 
@@ -93,7 +93,7 @@ void exitCurrentProcess(int ExitCode) {
                 processTable[i].stackBase = NULL;
                 processTable[i].stackSize = 0;
             }
-            processTable[i].Entry = NULL;
+            processTable[i].entry = NULL;
             processTable[i].Arg = NULL;
             processTable[i].state = TERMINATED;
             processTable[i].pid = 0;
@@ -113,7 +113,7 @@ int killProcess(int pid) {
                 processTable[i].stackBase = NULL;
                 processTable[i].stackSize = 0;
             }
-            processTable[i].Entry = NULL;
+            processTable[i].entry = NULL;
             processTable[i].Arg = NULL;
             processTable[i].state = TERMINATED;
             processTable[i].pid = 0;

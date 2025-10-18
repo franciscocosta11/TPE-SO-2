@@ -43,12 +43,12 @@ typedef struct Process {
 
     void*          stackBase;    // base del stack --> para la posterior liberacion
     size_t         stackSize;    // tamaÑo del stack
-    void*          ctx;          /**< Puntero opaco al contexto guardado */
+    void*          ctx;          //! Puntero al contexto --> REVISAR
     int priority;
 
-    struct Process* Next;        // siguiente en la lista
+    struct Process* next;        // siguiente en la lista
 
-    void         (*Entry)(void*);//entry point
+    void         (*entry)(void*);//entry point
     void*          Arg;          // argumento inicial
 } Process;
 
