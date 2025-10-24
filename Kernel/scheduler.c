@@ -89,6 +89,8 @@ void* schedule(void* savedContext) {
     }
 
     Process* next = pickNext();
+    // pickNext siempre debería garantizar que se devuelva un proceso
+    // si no hay procesos que devuelva el idle, pero nunca null
     if (next == NULL) {
         currentProcess = NULL;
         currentPid = 0;

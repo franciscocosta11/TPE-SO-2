@@ -92,11 +92,19 @@ Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t 
     // Contexto inicial: usamos contextSwitchTo (mov rsp, ctx; ret).
     // Por lo tanto, ctx debe apuntar a una pila cuyo tope contenga la
     // dirección de retorno. Esa dirección será nuestro trampolín.
-    uint8_t* top = (uint8_t*)p->stackBase + p->stackSize;
-    uintptr_t aligned = ((uintptr_t)top) & ~((uintptr_t)0xF);
-    uint64_t* sp = (uint64_t*)aligned;
-    *(--sp) = (uint64_t)processBootstrap; // ret -> processBootstrap
-    p->ctx = (void*)sp;
+    uint8_t* stackTop = (uint8_t*)p->stackBase + p->stackSize;
+    stackTop = (uint8_t*)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
+    StackFrame* frame = (StackFrame*)(stackTop - sizeof(StackFrame));
+
+    memset(frame, 0, sizeof(StackFrame));
+
+    frame->rip = (uint64_t)processBootstrap;
+    frame->cs = KERNEL_CS;
+    frame->rflags = INITIAL_RFLAGS;
+    frame->rsp = (uint64_t) stackTop;
+    frame->ss = KERNEL_SS;
+
+    p->ctx = frame;
 
     schedulerAddProcess(p);
 

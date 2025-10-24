@@ -7,6 +7,8 @@
 #include <fonts.h>
 #include <syscallDispatcher.h>
 #include <sound.h>
+#include "process.h"
+#include "scheduler.h"
 
 // extern uint8_t text;
 // extern uint8_t rodata;
@@ -48,13 +50,31 @@ void * initializeKernelBinary(){
 	return getStackBase();
 }
 
+void idleProcessMain(void* arg) { // el parámetro no se usa pero es por convención que se deja
+	while (1)
+	{
+		_hlt();
+	}
+}
+
 int main(){	
 	load_idt();
 
-	setFontSize(2);
-	
-	((EntryPoint)shellModuleAddress)();
+	initProcessSystem();
 
+	createProcess(&idleProcessMain, NULL, NULL, 0);
+
+	void (*shell_entry_point)(void*) = (void (*)(void*))shellModuleAddress; // no sé si es necesario este casteo
+	createProcess(shell_entry_point, NULL, NULL, 0);
+
+	// Habilitar interrupciones y arrancar inmediatamente el primer proceso listo
+	_sti();
+	startFirstProcess();
+
+	// Si por algún motivo no había procesos listos, continuamos aquí
+	setFontSize(2);
+	idleProcessMain(NULL);
+	
 	__builtin_unreachable();
 
 	return 0;

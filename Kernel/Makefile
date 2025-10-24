@@ -1,6 +1,7 @@
 include Makefile.inc
 
 KERNEL=kernel.bin
+KERNEL_ELF=kernel.elf
 SOURCES=$(wildcard *.c ./drivers/*.c ./idt/*.c)
 SOURCES_ASM=$(wildcard asm/*.asm)
 HOT_OBJECTS=./drivers/video.o fonts.o # Compiled with -O3
@@ -11,10 +12,16 @@ LOADERSRC=loader.asm
 LOADEROBJECT=$(LOADERSRC:.asm=.o)
 STATICLIBS=
 
+LDFLAGS_FOR_ELF := $(filter-out -O binary, $(LDFLAGS))
+LDFLAGS_FOR_ELF := $(filter-out --oformat binary, $(LDFLAGS_FOR_ELF))
+
 all: $(KERNEL)
 
-$(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM)
-	$(LD) $(LDFLAGS) -T kernel.ld -o $(KERNEL) $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(STATICLIBS)
+$(KERNEL_ELF): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM) kernel.elf.ld
+	$(LD) $(LDFLAGS_FOR_ELF) -T kernel.elf.ld -o $(KERNEL_ELF) $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(STATICLIBS)
+
+$(KERNEL): $(KERNEL_ELF)
+	objcopy -O binary $(KERNEL_ELF) $(KERNEL)
 
 $(HOT_OBJECTS) : %.o: %.c
 	$(GCC) -O3 $(GCCFLAGS) -I./include -c $< -o $@
@@ -32,6 +39,6 @@ $(LOADEROBJECT):
 	$(ASM) $(ASMFLAGS) $(LOADERSRC) -o $(LOADEROBJECT)
 
 clean:
-	rm -rf */*.o *.o *.bin
+	rm -rf */*.o *.o *.bin *.elf
 
 .PHONY: all clean

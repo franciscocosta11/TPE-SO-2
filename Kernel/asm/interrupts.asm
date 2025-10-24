@@ -173,12 +173,9 @@ picSlaveMask:
 _irq00Handler:
 	pushState
 
-	mov rdi, 0 ; pass IRQ number to dispatcher (timer tick)
-	call irqDispatcher
-
-	mov rdi, rsp ; pass saved context to scheduler
-	call schedule
-	mov rsp, rax
+	mov rdi, rsp ; le pasa el contexto de la tarea anterior para guardarlo en pcb
+	call schedule ; devuelve puntero al stack del nuevo proceso
+	mov rsp, rax ; el stack pointer apunta al stack del nuevo proceso
 
 	; signal pic EOI (End of Interrupt)
 	mov al, 20h
