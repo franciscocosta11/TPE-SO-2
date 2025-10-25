@@ -60,6 +60,26 @@ void idleProcessMain(void* arg) { // el parámetro no se usa pero es por convenc
 int main(){	
 	load_idt();
 
+
+	// --- 1. Calcular inicio del heap ---
+    // (Alineado a 4K después del fin del kernel)
+    uintptr_t heap_start = (uintptr_t)&endOfKernel;
+    uintptr_t page_size = 0x1000; // 4K
+    if (heap_start % page_size != 0) {
+        heap_start = (heap_start + page_size) & ~(page_size - 1);
+    }
+
+    // --- 2. Calcular tamaño del heap (según Pure64 Manual) ---
+    uint32_t total_ram_mb = *(uint32_t*)0x5020;
+    uintptr_t total_ram_bytes = (uintptr_t)total_ram_mb * 1024 * 1024;
+    
+    size_t heap_size = total_ram_bytes - heap_start;
+
+    // --- 3. Inicializar MM ---
+    createMemory((void*)heap_start, heap_size);
+
+    // --- 4. Continuar ---
+
 	initProcessSystem();
 
 	createProcess(&idleProcessMain, NULL, NULL, 0);

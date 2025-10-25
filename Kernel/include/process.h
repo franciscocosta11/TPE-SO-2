@@ -9,7 +9,7 @@ extern int currentPid; // el primer proceso current va a ser el primero en inici
 extern int availableProcesses;
 
 #define MIN_PRIORITY 0
-#define MAX_PRIORITY 3 
+#define MAX_PRIORITY 3
 
 // Configuración
 #define MAX_PROCESSES 16
@@ -18,15 +18,17 @@ extern int availableProcesses;
 /** @enum ProcessState
  *  @brief Estados posibles de un proceso (MVP).
  */
-typedef enum {
-    READY,      
-    RUNNING,    
-    TERMINATED, 
-    BLOCKED     
+typedef enum
+{
+    READY,
+    RUNNING,
+    TERMINATED,
+    BLOCKED
 } ProcessState;
 
 // El orden DEBE COINCIDIR con tu macro pushState en interrupts.asm
-typedef struct {
+typedef struct
+{
     // --- pushState ---
     uint64_t r15;
     uint64_t r14;
@@ -43,7 +45,7 @@ typedef struct {
     uint64_t rcx;
     uint64_t rbx;
     uint64_t rax;
-    
+
     // --- Stack frame de iretq (simulado) ---
     uint64_t rip;
     uint64_t cs;
@@ -56,6 +58,7 @@ typedef struct {
 #define KERNEL_SS 0x10
 #define INITIAL_RFLAGS 0x202 // Flag de interrupción (IF) = 1
 
+extern int currentPid;
 
 /** @struct Process
  *  @brief PCB mínimo usado por el scheduler.
@@ -68,21 +71,21 @@ typedef struct {
  *   - Next: enlace simple para colas READY.
  *   - Entry/Arg: punto de entrada y argumento inicial del proceso.
  */
-typedef struct Process {
-    int            pid;          // identificador del proceso
-    ProcessState   state;        // estado actual del proceso (ready running blocked etc)
+typedef struct Process
+{
+    int pid;            // identificador del proceso
+    ProcessState state; // estado actual del proceso (ready running blocked etc)
 
-    void*          stackBase;    // base del stack --> para la posterior liberacion
-    size_t         stackSize;    // tamaÑo del stack
-    StackFrame*          ctx;          //! Puntero al contexto --> REVISAR
+    void *stackBase;  // base del stack --> para la posterior liberacion
+    size_t stackSize; // tamaÑo del stack
+    StackFrame *ctx;  //! Puntero al contexto --> REVISAR
     int priority;
 
-    struct Process* next;        // siguiente en la lista
+    struct Process *next; // siguiente en la lista
 
-    void         (*entry)(void*);//entry point
-    void*          Arg;          // argumento inicial
+    void (*entry)(void *); // entry point
+    void *Arg;             // argumento inicial
 } Process;
-
 
 extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
 
@@ -94,7 +97,6 @@ extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
  */
 void initProcessSystem(void);
 
-
 /**
  * @brief Crea un nuevo proceso y lo deja listo para ser scheduleado.
  *
@@ -105,8 +107,7 @@ void initProcessSystem(void);
  * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
  *         slots libres o stack inválido).
  */
-Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t StackSize);
-
+Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t StackSize);
 
 /**
  * @brief Termina el proceso actual con el código de salida indicado.
@@ -128,7 +129,7 @@ int killProcess(int pid);
  *
  * @return Puntero al `Process` en ejecución o NULL si no hay ninguno.
  */
-Process* getCurrentProcess(void);
+Process *getCurrentProcess(void);
 
 /**
  * @brief Devuelve el PID del proceso actualmente en ejecución.
@@ -138,4 +139,3 @@ Process* getCurrentProcess(void);
 int getCurrentPid(void);
 
 #endif PROCESS_H
-

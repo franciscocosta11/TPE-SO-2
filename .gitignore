@@ -12,6 +12,8 @@
 *.a
 *.so
 
+*.elf
+
 # Bash
 .bash_history
 
