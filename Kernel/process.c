@@ -19,19 +19,26 @@ Process processTable[MAX_PROCESSES]; // tabla de procesos
 
 // Trampolín de arranque: se entra aquí al primer cambio de contexto de un
 // proceso recién creado. Llama a la entry y, si retorna, termina el proceso.
-static void processBootstrap(void) {
-    Process* p = getCurrentProcess();
-    if (p && p->entry) {
+static void processBootstrap(void)
+{
+    Process *p = getCurrentProcess();
+    if (p && p->entry)
+    {
         p->entry(p->Arg);
     }
     // Si retorna, finalizar ordenadamente
     exitCurrentProcess(0);
     // No debería volver
-    for(;;) { _hlt(); }
+    for (;;)
+    {
+        _hlt();
+    }
 }
 
-void initProcessSystem(void) {
-    for (int i = 0; i < MAX_PROCESSES; i++) {
+void initProcessSystem(void)
+{
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
         processTable[i].pid = 0; /* pid 0 = libre */
         processTable[i].state = TERMINATED;
         processTable[i].entry = NULL;
@@ -47,20 +54,25 @@ void initProcessSystem(void) {
     initScheduler();
 }
 
-Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t StackSize) {
-    if (Entry == NULL) return NULL;
+Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t StackSize)
+{
+    if (Entry == NULL)
+        return NULL;
 
     // busco slot libre
     int slot = -1;
-    //! despues habria que crear la funcion getAvailableSlot... dbpp 
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (processTable[i].state == TERMINATED || processTable[i].pid == 0) {
+    //! despues habria que crear la funcion getAvailableSlot... dbpp
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if (processTable[i].state == TERMINATED || processTable[i].pid == 0)
+        {
             slot = i;
             break;
         }
     }
 
-    if (slot < 0) return NULL;
+    if (slot < 0)
+        return NULL;
 
     // creo PCB
     Process *p = &processTable[slot];
@@ -71,55 +83,67 @@ Process* createProcess(void (*Entry)(void*), void* Arg, void* StackBase, size_t 
     p->next = NULL;
     p->priority = MIN_PRIORITY;
 
-    /* Stack: usar StackBase si se pasa, sino reservar con MemoryManager */
-    if (StackBase != NULL && StackSize > 0) {
-        p->stackBase = StackBase;
-        p->stackSize = StackSize;
-    } else {
-        size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
-        void *stk = allocMemory(sz);
-        if (stk == NULL) {
-            // osea digamos no funciono
-            p->pid = 0;
-            p->state = TERMINATED;
-            return NULL;
-        }
-        p->stackBase = stk;
-        p->stackSize = sz;
+    size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
+    void *stk = allocMemory(sz);
+    if (stk == NULL)
+    {
+        // osea digamos no funciono
+        p->pid = 0;
+        p->state = TERMINATED;
+        return NULL;
     }
+    p->stackBase = stk;
+    p->stackSize = sz;
 
-    if (availableProcesses > 0) availableProcesses--;
+    if (availableProcesses > 0)
+        availableProcesses--;
     // Contexto inicial: usamos contextSwitchTo (mov rsp, ctx; ret).
     // Por lo tanto, ctx debe apuntar a una pila cuyo tope contenga la
     // dirección de retorno. Esa dirección será nuestro trampolín.
-    uint8_t* stackTop = (uint8_t*)p->stackBase + p->stackSize;
-    stackTop = (uint8_t*)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
-    StackFrame* frame = (StackFrame*)(stackTop - sizeof(StackFrame));
+    uint8_t *stackTop = (uint8_t *)p->stackBase + p->stackSize;
+    stackTop = (uint8_t *)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
+    StackFrame *frame = (StackFrame *)(stackTop - sizeof(StackFrame));
 
     memset(frame, 0, sizeof(StackFrame));
 
     frame->rip = (uint64_t)processBootstrap;
     frame->cs = KERNEL_CS;
     frame->rflags = INITIAL_RFLAGS;
-    frame->rsp = (uint64_t) stackTop;
+    frame->rsp = (uint64_t)stackTop;
     frame->ss = KERNEL_SS;
 
-    p->ctx = frame;
+    /*
+     * Para que `contextSwitchTo((void*)p->ctx)` (mov rsp, ctx; ret)
+     * funcione para el primer arranque del proceso, colocamos la
+     * dirección de retorno (processBootstrap) en el tope de la pila
+     * y guardamos ese puntero en p->ctx. Los contextos guardados por
+     * interrupciones (save via pushState) siguen usando el layout
+     * de StackFrame, y schedule maneja ambos casos correctamente.
+     */
+    uint64_t *retAddr = (uint64_t *)(stackTop - sizeof(uint64_t));
+    *retAddr = (uint64_t)processBootstrap;
+
+    p->ctx = (StackFrame *)retAddr;
 
     schedulerAddProcess(p);
 
     return p;
 }
 
-void exitCurrentProcess(int exitCode) {
-    (void) exitCode;
+void exitCurrentProcess(int exitCode)
+{
+    (void)exitCode;
     int pid = getCurrentPid();
-    if (pid <= 0) return;
+    if (pid <= 0)
+        return;
 
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (processTable[i].pid == pid) {
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if (processTable[i].pid == pid)
+        {
             // si uso stack, lo libero
-            if (processTable[i].stackBase) {
+            if (processTable[i].stackBase)
+            {
                 freeMemory(processTable[i].stackBase);
                 processTable[i].stackBase = NULL;
                 processTable[i].stackSize = 0;
@@ -135,11 +159,16 @@ void exitCurrentProcess(int exitCode) {
     }
 }
 
-int killProcess(int pid) {
-    if (pid <= 0) return -1;
-    for (int i = 0; i < MAX_PROCESSES; i++) {
-        if (processTable[i].pid == pid) {
-            if (processTable[i].stackBase) {
+int killProcess(int pid)
+{
+    if (pid <= 0)
+        return -1;
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if (processTable[i].pid == pid)
+        {
+            if (processTable[i].stackBase)
+            {
                 freeMemory(processTable[i].stackBase);
                 processTable[i].stackBase = NULL;
                 processTable[i].stackSize = 0;
@@ -149,7 +178,8 @@ int killProcess(int pid) {
             processTable[i].state = TERMINATED;
             processTable[i].pid = 0;
             availableProcesses++;
-            if (currentPid == pid) {
+            if (currentPid == pid)
+            {
                 currentPid = 0;
             }
             return 0;
@@ -158,12 +188,13 @@ int killProcess(int pid) {
     return -1;
 }
 
-
-Process* getCurrentProcess() {
-    if (currentPid <= 0 || currentPid > MAX_PROCESSES) return NULL;
+Process *getCurrentProcess()
+{
+    if (currentPid <= 0 || currentPid > MAX_PROCESSES)
+        return NULL;
     return &processTable[currentPid - 1];
 }
 
-int getCurrentPid(void) { return currentPid;}
+int getCurrentPid(void) { return currentPid; }
 
-int getAvailableProcesses(void) { return availableProcesses;}
+int getAvailableProcesses(void) { return availableProcesses; }

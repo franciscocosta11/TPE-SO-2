@@ -83,7 +83,7 @@ static void divideBlock(void *block, int current_order, int target_order)
 	while (current_order > target_order)
 	{
 		current_order--;
-		size_t half_size = MIN_BLOCK_SIZE_BYTES * (1u << current_order);
+		size_t half_size = MIN_BLOCK_SIZE_BYTES * (1ull << current_order);
 		void *buddy = (void *)((uintptr_t)block + half_size);
 		addBlockToFreelist(buddy, current_order);
 	}
@@ -116,7 +116,7 @@ void createMemory(void *const restrict startAddress, const size_t size)
 
 	for (int order = MAX_ORDER; order >= MIN_ORDER; order--)
 	{
-		size_t blockSize = MIN_BLOCK_SIZE_BYTES * (1u << order);
+		size_t blockSize = MIN_BLOCK_SIZE_BYTES * (1ull << order);
 		while (remainingSize >= blockSize)
 		{
 			addBlockToFreelist((void *)currentAddress, order);
@@ -182,7 +182,7 @@ void freeMemory(void *blockAddress)
 
 	while (order < MAX_ORDER)
 	{
-		size_t block_size = MIN_BLOCK_SIZE_BYTES * (1u << order);
+	size_t block_size = MIN_BLOCK_SIZE_BYTES * (1ull << order);
 		uintptr_t buddy_address = (uintptr_t)current_block ^ block_size;
 
 		void *buddy = findAndRemoveBuddy((void *)buddy_address, order);
