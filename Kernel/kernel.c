@@ -65,23 +65,21 @@ int main(){
     // --- 4. Continuar ---
 
 	initProcessSystem(); // este init llama al initScheduler
-	// initScheduler();
 
-	_sti();
 
-	createProcess(&idleProcessMain, NULL, NULL, 0);
-
+	char *idleArgs[] = { "idle" };
+	
+	createProcess(&idleProcessMain, idleArgs, 1, NULL, 0);
+	
+	char *shellArgs[] = { "shell" };
 	void (*shell_entry_point)(void*) = (void (*)(void*))shellModuleAddress; // no sé si es necesario este casteo
-	createProcess(shell_entry_point, NULL, NULL, 0);
-
-	// Habilitar interrupciones y arrancar inmediatamente el primer proceso listo
-	startFirstProcess();
+	createProcess(shell_entry_point, shellArgs, 1, NULL, 0);
+	_sti();
 
 	// Si por algún motivo no había procesos listos, continuamos aquí
 	setFontSize(2);
-	idleProcessMain(NULL);
 	
-
+	forceSwitchContext();
 
 	return 0;
 }

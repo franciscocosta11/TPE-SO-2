@@ -76,10 +76,10 @@ void schedulerAddProcess(Process* process) {
     countReadyQueue[priority]++;
 }
 
-void* schedule(void* savedContext) {
+uint64_t schedule(uint64_t savedContext) {
     Process* running = currentProcess;
 
-    if (running != NULL && savedContext != NULL) {
+    if (running != NULL && savedContext != 0) {
         running->ctx = savedContext;
 
         if (running->state == RUNNING) {
@@ -161,18 +161,4 @@ void unschedule(Process* process) {
     if (countReadyQueue[priority] > 0) {
         countReadyQueue[priority]--;
     }
-}
-
-void startFirstProcess(void) {
-    Process* current = pickNext();
-
-    // si no hay proceso a ejecutar, me voy
-    if (current==NULL)
-        return;
-
-    current->state = RUNNING;
-    currentProcess = current;
-    currentPid = current->pid;
-    // Salta al contexto inicial del proceso (rsp=ctx; ret)
-    contextSwitchTo((void*)current->ctx);
 }

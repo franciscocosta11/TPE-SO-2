@@ -2,7 +2,7 @@
 GLOBAL _cli
 GLOBAL _sti
 GLOBAL _hlt
-GLOBAL contextSwitchTo
+GLOBAL forceSwitchContext
 
 GLOBAL picMasterMask
 GLOBAL picSlaveMask
@@ -139,12 +139,8 @@ _sti:
 	sti
 	ret
 
-contextSwitchTo:
-	test rdi, rdi
-	je .return
-	mov rsp, rdi
-	ret
-.return:
+forceSwitchContext:
+	int 20h
 	ret
 
 picMasterMask:

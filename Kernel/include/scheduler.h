@@ -30,7 +30,7 @@ void initScheduler(void);
  * @param savedContext Stack del proceso interrumpido (valor de `rsp` guardado).
  * @return Puntero al contexto del proceso que continuará ejecutándose.
  */
-void* schedule(void* savedContext);
+uint64_t schedule(uint64_t savedContext);
 
 /**
  * @brief Elimina un proceso concreto de la cola READY en la que se encuentre.

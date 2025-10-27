@@ -1,5 +1,4 @@
 // process.c — Gestión de procesos (PCB + tabla + helpers)
-#include <stdio.h>
 
 #include <stdint.h>
 #include <stddef.h>
@@ -11,6 +10,7 @@
 #include "scheduler.h"
 // Para _hlt usado en el trampolín
 #include "interrupts.h"
+#include "lib.h"
 
 int currentPid = 0; // el primer proceso current va a ser el primero en inicializarse
 int availableProcesses = 0;
@@ -47,14 +47,14 @@ void initProcessSystem(void)
         processTable[i].stackSize = 0;
         processTable[i].next = NULL;
         processTable[i].priority = MIN_PRIORITY;
-        processTable[i].ctx = NULL;
+        processTable[i].ctx = 0;
     }
     availableProcesses = MAX_PROCESSES;
     currentPid = 0;
     initScheduler();
 }
 
-Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t StackSize)
+Process *createProcess(void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize)
 {
     if (Entry == NULL)
         return NULL;
@@ -79,7 +79,7 @@ Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t
     p->pid = slot + 1; /* pid simple: índice+1 */
     p->state = READY;
     p->entry = Entry;
-    p->Arg = Arg;
+    p->Arg = Argv;
     p->next = NULL;
     p->priority = MIN_PRIORITY;
 
@@ -101,29 +101,20 @@ Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t
     // Por lo tanto, ctx debe apuntar a una pila cuyo tope contenga la
     // dirección de retorno. Esa dirección será nuestro trampolín.
     uint8_t *stackTop = (uint8_t *)p->stackBase + p->stackSize;
-    stackTop = (uint8_t *)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
-    StackFrame *frame = (StackFrame *)(stackTop - sizeof(StackFrame));
+    // stackTop = (uint8_t *)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
+    // StackFrame *frame = (StackFrame *)(stackTop - sizeof(StackFrame));
 
-    memset(frame, 0, sizeof(StackFrame));
+    // memset(frame, 0, sizeof(StackFrame));
 
-    frame->rip = (uint64_t)processBootstrap;
-    frame->cs = KERNEL_CS;
-    frame->rflags = INITIAL_RFLAGS;
-    frame->rsp = (uint64_t)stackTop;
-    frame->ss = KERNEL_SS;
+    uint8_t *readyRsp = stackInit(stackTop, (void *)Entry, Argc, Argv);
 
-    /*
-     * Para que `contextSwitchTo((void*)p->ctx)` (mov rsp, ctx; ret)
-     * funcione para el primer arranque del proceso, colocamos la
-     * dirección de retorno (processBootstrap) en el tope de la pila
-     * y guardamos ese puntero en p->ctx. Los contextos guardados por
-     * interrupciones (save via pushState) siguen usando el layout
-     * de StackFrame, y schedule maneja ambos casos correctamente.
-     */
-    uint64_t *retAddr = (uint64_t *)(stackTop - sizeof(uint64_t));
-    *retAddr = (uint64_t)processBootstrap;
+    // frame->rip = (uint64_t)&processBootstrap;
+    // frame->cs = KERNEL_CS;
+    // frame->rflags = INITIAL_RFLAGS;
+    // frame->rsp = (uint64_t)stackTop;
+    // frame->ss = KERNEL_SS;
 
-    p->ctx = (StackFrame *)retAddr;
+    p->ctx = (uint64_t)readyRsp;
 
     schedulerAddProcess(p);
 

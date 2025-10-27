@@ -78,13 +78,13 @@ typedef struct Process
 
     void *stackBase;  // base del stack --> para la posterior liberacion
     size_t stackSize; // tamaÑo del stack
-    StackFrame *ctx;  //! Puntero al contexto --> REVISAR
+    uint64_t ctx;  //! Puntero al contexto --> REVISAR
     int priority;
 
     struct Process *next; // siguiente en la lista
 
     void (*entry)(void *); // entry point
-    void *Arg;             // argumento inicial
+    char **Arg;             // argumento inicial
 } Process;
 
 extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
@@ -107,7 +107,7 @@ void initProcessSystem(void);
  * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
  *         slots libres o stack inválido).
  */
-Process *createProcess(void (*Entry)(void *), void *Arg, void *StackBase, size_t StackSize);
+Process *createProcess(void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize);
 
 /**
  * @brief Termina el proceso actual con el código de salida indicado.
