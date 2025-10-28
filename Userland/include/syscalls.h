@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys.h>
+#include <process_info.h>
 
 // Linux syscall prototypes
 int32_t sys_write(int64_t fd, const void * buf, int64_t count);
@@ -55,5 +56,7 @@ int32_t sys_sleep_milis(uint32_t milis);
 int32_t sys_get_register_snapshot(int64_t * registers);
 
 int32_t sys_get_character_without_display(void);
+
+int32_t sys_get_processes(ProcessInfo *buffer, uint64_t capacity);
 
 #endif

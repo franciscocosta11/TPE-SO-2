@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <keyboard.h>
+#include <process_info.h>
 
 typedef struct {
     int64_t r15;
@@ -67,5 +68,7 @@ int32_t sys_get_register_snapshot(int64_t * registers);
 
 // Get character without showing
 int32_t sys_get_character_without_display(void);
+
+int32_t sys_get_processes(ProcessInfo *userBuffer, uint64_t capacity);
 
 #endif

@@ -2,7 +2,7 @@
 #define _SYS_H_
 
 #include <stdint.h>
-#include <stdint.h>
+#include <process_info.h>
 
 // Enum of registerable keys.
 // Note: Does not include TAB or RETURN
@@ -117,5 +117,6 @@ int getWindowHeight(void);
 void sleep(uint32_t milliseconds);
 int32_t getRegisterSnapshot(int64_t * registers);
 int32_t getCharacterWithoutDisplay(void);
+int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity);
 
 #endif

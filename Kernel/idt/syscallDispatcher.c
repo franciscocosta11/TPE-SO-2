@@ -6,6 +6,7 @@
 #include <lib.h>
 #include <video.h>
 #include <time.h>
+#include <process.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
@@ -51,6 +52,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x800000E0: return sys_get_register_snapshot((int64_t *) registers->rdi);
 
 		case 0x800000F0: return sys_get_character_without_display();
+		case 0x800000F1: return sys_get_processes((ProcessInfo *) registers->rdi, registers->rsi);
 		
 		default:
             return 0;
@@ -126,6 +128,21 @@ uint16_t sys_window_width(void) {
 
 uint16_t sys_window_height(void) {
 	return getWindowHeight();
+}
+
+int32_t sys_get_processes(ProcessInfo *userBuffer, uint64_t capacity) {
+	if (userBuffer == NULL || capacity == 0) {
+		return 0;
+	}
+
+	size_t maxEntries = (size_t)capacity;
+	if (maxEntries > MAX_PROCESSES) {
+		maxEntries = MAX_PROCESSES;
+	}
+
+	size_t written = getProcessSnapshot(userBuffer, maxEntries);
+
+	return (int32_t)written;
 }
 
 // ==================================================================

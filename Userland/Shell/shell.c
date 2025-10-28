@@ -12,6 +12,11 @@
 
 #define MAX_BUFFER_SIZE 1024
 #define HISTORY_SIZE 10
+#define PROCESS_SNAPSHOT_CAP 32
+#define PID_COL_WIDTH 3
+#define STATE_COL_WIDTH 9
+#define PRIORITY_COL_WIDTH 8
+#define COLUMN_PADDING 2
 
 #define INC_MOD(x, m) x = (((x) + 1) % (m))
 #define SUB_MOD(a, b, m) ((a) - (b) < 0 ? (m) - (b) + (a) : (a) - (b))
@@ -30,9 +35,14 @@ int history(void);
 int man(void);
 int regs(void);
 int time(void);
+int ps(void);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
+static void printSpaces(int count);
+static int digitsForInt(int value);
+static void printIntColumn(int value, int width);
+static void printStringColumn(const char *value, int width);
 
 static uint8_t last_command_arrowed = 0;
 
@@ -52,8 +62,9 @@ Command commands[] = {
     { .name = "help",           .function = (int (*)(void))(unsigned long long)help,            .description = "Prints the available commands" },
     { .name = "history",        .function = (int (*)(void))(unsigned long long)history,         .description = "Prints the command history" },
     { .name = "invop",          .function = (int (*)(void))(unsigned long long)_invalidopcode,  .description = "Generates an invalid Opcode exception" },
-    { .name = "regs",           .function = (int (*)(void))(unsigned long long)regs,            .description = "Prints the register snapshot, if any" },
     { .name = "man",            .function = (int (*)(void))(unsigned long long)man,             .description = "Prints the description of the provided command" },
+    { .name = "ps",             .function = (int (*)(void))(unsigned long long)ps,              .description = "Prints the process list" },
+    { .name = "regs",           .function = (int (*)(void))(unsigned long long)regs,            .description = "Prints the register snapshot, if any" },
     { .name = "time",           .function = (int (*)(void))(unsigned long long)time,            .description = "Prints the current time" },
 };
 
@@ -252,6 +263,48 @@ int man(void) {
     return 1;
 }
 
+int ps(void) {
+    ProcessInfo processes[PROCESS_SNAPSHOT_CAP] = {0};
+    int32_t count = getProcesses(processes, PROCESS_SNAPSHOT_CAP);
+
+    if (count <= 0) {
+        printf("No active processes\n");
+        return 0;
+    }
+
+    const char *stateNames[] = {
+        [READY] = "READY",
+        [RUNNING] = "RUNNING",
+        [TERMINATED] = "TERMINATED",
+        [BLOCKED] = "BLOCKED"
+    };
+
+    printStringColumn("PID", PID_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
+    printStringColumn("STATE", STATE_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
+    printStringColumn("PRIORITY", PRIORITY_COL_WIDTH);
+    printf("\n");
+
+    for (int i = 0; i < count; i++) {
+        const ProcessInfo *info = &processes[i];
+        const char *state = "UNKNOWN";
+
+        if (info->state >= READY && info->state <= BLOCKED && stateNames[info->state] != NULL) {
+            state = stateNames[info->state];
+        }
+
+        printIntColumn(info->pid, PID_COL_WIDTH);
+        printSpaces(COLUMN_PADDING);
+        printStringColumn(state, STATE_COL_WIDTH);
+        printSpaces(COLUMN_PADDING);
+        printIntColumn(info->priority, PRIORITY_COL_WIDTH);
+        printf("\n");
+    }
+
+    return 0;
+}
+
 int regs(void) {
     const static char * register_names[] = {
         "rax", "rbx", "rcx", "rdx", "rbp", "rdi", "rsi", "r8 ", "r9 ", "r10", "r11", "r12", "r13", "r14", "r15", "rsp", "rip", "rflags"
@@ -273,5 +326,52 @@ int regs(void) {
     }
 
     return 0;
+}
+
+// Utils de formateo para printear tablas
+
+static void printSpaces(int count) {
+    while (count-- > 0) {
+        putchar(' ');
+    }
+}
+
+static int digitsForInt(int value) {
+    int len = 0;
+    int aux = value;
+
+    if (aux <= 0) {
+        len = 1;
+        aux = -aux;
+    }
+
+    while (aux > 0) {
+        len++;
+        aux /= 10;
+    }
+
+    return len;
+}
+
+static void printIntColumn(int value, int width) {
+    printf("%d", value);
+
+    int len = digitsForInt(value);
+    if (len < width) {
+        printSpaces(width - len);
+    }
+}
+
+static void printStringColumn(const char *value, int width) {
+    if (value == NULL) {
+        value = "";
+    }
+
+    int len = strlen(value);
+    printf("%s", value);
+
+    if (len < width) {
+        printSpaces(width - len);
+    }
 }
 

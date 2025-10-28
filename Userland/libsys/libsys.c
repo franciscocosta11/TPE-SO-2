@@ -83,3 +83,7 @@ int32_t getRegisterSnapshot(int64_t * registers) {
 int32_t getCharacterWithoutDisplay(void) {
     return sys_get_character_without_display();
 }
+
+int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity) {
+    return sys_get_processes(buffer, capacity);
+}

@@ -5,26 +5,17 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#include <process_info.h>
+
 extern int currentPid; // el primer proceso current va a ser el primero en inicializarse
 extern int availableProcesses;
 
+#define MAX_PROCESSES 16
 #define MIN_PRIORITY 0
 #define MAX_PRIORITY 3
 
 // Configuración
-#define MAX_PROCESSES 16
 #define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
-
-/** @enum ProcessState
- *  @brief Estados posibles de un proceso (MVP).
- */
-typedef enum
-{
-    READY,
-    RUNNING,
-    TERMINATED,
-    BLOCKED
-} ProcessState;
 
 // El orden DEBE COINCIDIR con tu macro pushState en interrupts.asm
 typedef struct
@@ -138,4 +129,6 @@ Process *getCurrentProcess(void);
  */
 int getCurrentPid(void);
 
-#endif PROCESS_H
+size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
+
+#endif // PROCESS_H

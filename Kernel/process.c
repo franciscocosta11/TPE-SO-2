@@ -189,3 +189,31 @@ Process *getCurrentProcess()
 int getCurrentPid(void) { return currentPid; }
 
 int getAvailableProcesses(void) { return availableProcesses; }
+
+size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount)
+{
+    if (buffer == NULL || maxCount == 0)
+    {
+        return 0;
+    }
+
+    size_t written = 0;
+
+    for (int i = 0; i < MAX_PROCESSES && written < maxCount; i++)
+    {
+        Process *process = &processTable[i];
+
+        if (process->pid == 0)
+        {
+            continue;
+        }
+
+        buffer[written].pid = process->pid;
+        buffer[written].state = process->state;
+        buffer[written].priority = process->priority;
+
+        written++;
+    }
+
+    return written;
+}
