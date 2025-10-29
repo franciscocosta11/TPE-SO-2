@@ -118,5 +118,8 @@ void sleep(uint32_t milliseconds);
 int32_t getRegisterSnapshot(int64_t * registers);
 int32_t getCharacterWithoutDisplay(void);
 int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity);
+int32_t killProcess(int32_t pid);
+int32_t toggleBlockProcess(int32_t pid);
+int32_t getMemoryState(char *buffer, uint64_t capacity);
 
 #endif

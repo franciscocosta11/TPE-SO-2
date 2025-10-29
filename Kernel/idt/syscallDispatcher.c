@@ -7,6 +7,8 @@
 #include <video.h>
 #include <time.h>
 #include <process.h>
+#include <MemoryManager.h>
+#include <string.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
@@ -53,6 +55,9 @@ int32_t syscallDispatcher(Registers * registers) {
 
 		case 0x800000F0: return sys_get_character_without_display();
 		case 0x800000F1: return sys_get_processes((ProcessInfo *) registers->rdi, registers->rsi);
+		case 0x800000F2: return sys_kill_process((int32_t)registers->rdi);
+		case 0x800000F3: return sys_toggle_block_process((int32_t)registers->rdi);
+		case 0x800000F4: return sys_get_memory_state((char *)registers->rdi, registers->rsi);
 		
 		default:
             return 0;
@@ -143,6 +148,37 @@ int32_t sys_get_processes(ProcessInfo *userBuffer, uint64_t capacity) {
 	size_t written = getProcessSnapshot(userBuffer, maxEntries);
 
 	return (int32_t)written;
+}
+
+int32_t sys_kill_process(int32_t pid) {
+	return killProcess(pid);
+}
+
+int32_t sys_toggle_block_process(int32_t pid) {
+	return toggleProcessBlock(pid);
+}
+
+int32_t sys_get_memory_state(char *userBuffer, uint64_t capacity) {
+	if (userBuffer == NULL || capacity == 0) {
+		return 0;
+	}
+
+	const char *status = consultMemory();
+	if (status == NULL) {
+		return 0;
+	}
+
+	size_t len = 0;
+	while (status[len] != '\0' && len + 1 < capacity) {
+		userBuffer[len] = status[len];
+		len++;
+	}
+
+	if (capacity > 0) {
+		userBuffer[len] = '\0';
+	}
+
+	return (int32_t)len;
 }
 
 // ==================================================================

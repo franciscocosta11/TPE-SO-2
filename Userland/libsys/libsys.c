@@ -87,3 +87,15 @@ int32_t getCharacterWithoutDisplay(void) {
 int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity) {
     return sys_get_processes(buffer, capacity);
 }
+
+int32_t killProcess(int32_t pid) {
+    return sys_kill_process(pid);
+}
+
+int32_t toggleBlockProcess(int32_t pid) {
+    return sys_toggle_block_process(pid);
+}
+
+int32_t getMemoryState(char *buffer, uint64_t capacity) {
+    return sys_get_memory_state(buffer, capacity);
+}

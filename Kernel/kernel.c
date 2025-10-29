@@ -63,10 +63,7 @@ int main(){
 
     createMemory((void *)0xF00000, (1<<20));
 
-    // --- 4. Continuar ---
-
 	initProcessSystem(); // este init llama al initScheduler
-
 
 	char *idleArgs[] = { "idle" };
 	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, BACKGROUND);
@@ -80,7 +77,7 @@ int main(){
 	// Si por algún motivo no había procesos listos, continuamos aquí
 	setFontSize(2);
 	
-	forceSwitchContext();
+	contextSwitch();
 
 	return 0;
 }

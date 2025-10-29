@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Shared representation of process state exposed to userland for inspection
 typedef enum {
     READY,
     RUNNING,
@@ -12,13 +11,14 @@ typedef enum {
     BLOCKED
 } ProcessState;
 
-// Lightweight view of a process used when sharing state with userland
 typedef struct {
     int pid;
     ProcessState state;
     int priority;
     char* name;
     bool foreground;
+    uint64_t stackPointer;
+    uint64_t basePointer;
 } ProcessInfo;
 
 #endif // PROCESS_INFO_H

@@ -58,5 +58,8 @@ int32_t sys_get_register_snapshot(int64_t * registers);
 int32_t sys_get_character_without_display(void);
 
 int32_t sys_get_processes(ProcessInfo *buffer, uint64_t capacity);
+int32_t sys_kill_process(int32_t pid);
+int32_t sys_toggle_block_process(int32_t pid);
+int32_t sys_get_memory_state(char *buffer, uint64_t capacity);
 
 #endif

@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include <process_info.h>
+#include "process_info.h"
 
 extern int currentPid; // el primer proceso current va a ser el primero en inicializarse
 extern int availableProcesses;
@@ -114,6 +114,7 @@ void exitCurrentProcess(int ExitCode);
 
 //! Agregar comentario
 int killProcess(int pid);
+int toggleProcessBlock(int pid);
 
 // ============= HELPERS =============
 

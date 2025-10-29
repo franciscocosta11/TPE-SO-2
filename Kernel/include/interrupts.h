@@ -25,7 +25,7 @@ void picMasterMask(uint8_t mask);
 
 void picSlaveMask(uint8_t mask);
 
-void forceSwitchContext(void);
+void contextSwitch(void);
 
 #define TIMER_PIC_MASTER 0xFE
 #define KEYBOARD_PIC_MASTER 0xFD

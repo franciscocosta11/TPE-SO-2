@@ -8,6 +8,7 @@
 #include "scheduler.h"
 #include "interrupts.h"
 #include "lib.h"
+#include "process_info.h"
 
 int currentPid = 0; // el primer proceso current va a ser el primero en inicializarse
 int availableProcesses = 0;
@@ -33,7 +34,7 @@ void initProcessSystem(void)
     initScheduler();
 }
 
-Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, bool isForeground)
+Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, bool isForeground)
 {
     if (Entry == NULL)
         return NULL;
@@ -139,6 +140,10 @@ int killProcess(int pid)
     {
         if (processTable[i].pid == pid)
         {
+            if (processTable[i].state == READY)
+            {
+                unschedule(&processTable[i]);
+            }
             if (processTable[i].stackBase)
             {
                 freeMemory(processTable[i].stackBase);
@@ -157,6 +162,40 @@ int killProcess(int pid)
             return 0;
         }
     }
+    return -1;
+}
+
+int toggleProcessBlock(int pid)
+{
+    if (pid <= 0)
+        return -1;
+
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        Process *process = &processTable[i];
+
+        if (process->pid != pid)
+        {
+            continue;
+        }
+
+        if (process->state == READY)
+        {
+            unschedule(process);
+            process->state = BLOCKED;
+            return BLOCKED;
+        }
+
+        if (process->state == BLOCKED)
+        {
+            process->state = READY;
+            schedulerAddProcess(process);
+            return READY;
+        }
+
+        return -1;
+    }
+
     return -1;
 }
 
@@ -194,7 +233,18 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount)
         buffer[written].priority = process->priority;
         buffer[written].name = process->name;
         buffer[written].foreground = process->isForeground;
-        
+
+        uint64_t ctx = process->ctx;
+        buffer[written].stackPointer = ctx;
+
+        uint64_t basePointer = 0;
+        if (ctx != 0)
+        {
+            StackFrame *frame = (StackFrame *)ctx;
+            basePointer = frame->rbp;
+        }
+        buffer[written].basePointer = basePointer;
+
         written++;
     }
 

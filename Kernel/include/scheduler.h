@@ -79,14 +79,6 @@ void schedulerOnTick(void);
 void schedulerOnYield(void);
 
 /**
- * @brief Realiza el salto al contexto indicado.
- *
- * @param ctx Puntero a la estructura/opaco que representa el stack del proceso
- *        destino. Habitualmente obtenido del PCB seleccionado.
- */
-void contextSwitchTo(void* ctx);
-
-/**
  * @brief Prepara y agrega un proceso recién creado a las colas READY.
  *
  * Normalmente inicializa su contexto inicial (stack) y reutiliza

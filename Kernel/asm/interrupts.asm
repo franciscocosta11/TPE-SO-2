@@ -2,7 +2,7 @@
 GLOBAL _cli
 GLOBAL _sti
 GLOBAL _hlt
-GLOBAL forceSwitchContext
+GLOBAL contextSwitch
 
 GLOBAL picMasterMask
 GLOBAL picSlaveMask
@@ -139,7 +139,7 @@ _sti:
 	sti
 	ret
 
-forceSwitchContext:
+contextSwitch:
 	int 20h
 	ret
 

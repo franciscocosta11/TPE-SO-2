@@ -20,6 +20,53 @@ typedef struct FreeBlock
 } FreeBlock;
 
 static FreeBlock *free_lists[MAX_ORDER + 1];
+static uintptr_t managedBase = 0;
+static uintptr_t managedEnd = 0;
+static uint64_t managedBytes = 0;
+static uint64_t freeBytes = 0;
+
+static char *append_literal(char *dst, const char *text)
+{
+	while (*text != '\0') {
+		*dst++ = *text++;
+	}
+	return dst;
+}
+
+static char *append_uint64(char *dst, uint64_t value)
+{
+	char buffer[20];
+	uint32_t count = 0u;
+	do {
+		buffer[count++] = (char)('0' + (value % 10u));
+		value /= 10u;
+	} while (value != 0u && count < (uint32_t)(sizeof buffer));
+	while (count > 0u) {
+		*dst++ = buffer[--count];
+	}
+	return dst;
+}
+
+static char *append_hex(char *dst, uintptr_t value)
+{
+	static const char digits[] = "0123456789ABCDEF";
+	*dst++ = '0';
+	*dst++ = 'x';
+	if (value == 0u) {
+		*dst++ = '0';
+		return dst;
+	}
+	char buffer[2 * sizeof(uintptr_t)];
+	uint32_t count = 0u;
+	while (value != 0u && count < (uint32_t)(sizeof buffer)) {
+		buffer[count++] = digits[value & 0xFu];
+		value >>= 4u;
+	}
+	while (count > 0u) {
+		*dst++ = buffer[--count];
+	}
+	return dst;
+}
 
 static inline uintptr_t align_up(uintptr_t value, uintptr_t alignment)
 {
@@ -95,6 +142,10 @@ void createMemory(void *const restrict startAddress, const size_t size)
 	{
 		free_lists[i] = NULL;
 	}
+	managedBase = 0;
+	managedEnd = 0;
+	managedBytes = 0;
+	freeBytes = 0;
 
 	if (startAddress == NULL || size < MIN_BLOCK_SIZE_BYTES)
 	{
@@ -114,6 +165,11 @@ void createMemory(void *const restrict startAddress, const size_t size)
 	uintptr_t currentAddress = alignedBase;
 	size_t remainingSize = (size_t)(alignedEnd - alignedBase);
 
+	managedBase = alignedBase;
+	managedEnd = alignedEnd;
+	managedBytes = (uint64_t)(alignedEnd - alignedBase);
+	freeBytes = 0;
+
 	for (int order = MAX_ORDER; order >= MIN_ORDER; order--)
 	{
 		size_t blockSize = MIN_BLOCK_SIZE_BYTES * (1ull << order);
@@ -122,6 +178,7 @@ void createMemory(void *const restrict startAddress, const size_t size)
 			addBlockToFreelist((void *)currentAddress, order);
 			currentAddress += blockSize;
 			remainingSize -= blockSize;
+			freeBytes += blockSize;
 		}
 	}
 }
@@ -148,6 +205,16 @@ void *allocMemory(const size_t size)
 
 	BlockHeader *header = (BlockHeader *)block;
 	header->order = required_order;
+
+	size_t blockSize = MIN_BLOCK_SIZE_BYTES * (1ull << required_order);
+	if (freeBytes >= blockSize)
+	{
+		freeBytes -= blockSize;
+	}
+	else
+	{
+		freeBytes = 0;
+	}
 
 	return (void *)(header + 1);
 }
@@ -182,7 +249,7 @@ void freeMemory(void *blockAddress)
 
 	while (order < MAX_ORDER)
 	{
-	size_t block_size = MIN_BLOCK_SIZE_BYTES * (1ull << order);
+		size_t block_size = MIN_BLOCK_SIZE_BYTES * (1ull << order);
 		uintptr_t buddy_address = (uintptr_t)current_block ^ block_size;
 
 		void *buddy = findAndRemoveBuddy((void *)buddy_address, order);
@@ -199,6 +266,31 @@ void freeMemory(void *blockAddress)
 	}
 
 	addBlockToFreelist(current_block, order);
+	freeBytes += MIN_BLOCK_SIZE_BYTES * (1ull << order);
+}
+
+char *consultMemory(void)
+{
+	static char buffer[160];
+	char *cursor = buffer;
+
+	if (managedBytes == 0)
+	{
+		cursor = append_literal(cursor, "manager=uninitialized");
+		*cursor = '\0';
+		return buffer;
+	}
+
+	cursor = append_literal(cursor, "total=");
+	cursor = append_uint64(cursor, managedBytes);
+	cursor = append_literal(cursor, " free=");
+	cursor = append_uint64(cursor, freeBytes);
+	cursor = append_literal(cursor, " base=");
+	cursor = append_hex(cursor, managedBase);
+	cursor = append_literal(cursor, " end=");
+	cursor = append_hex(cursor, managedEnd);
+	*cursor = '\0';
+	return buffer;
 }
 
 #endif

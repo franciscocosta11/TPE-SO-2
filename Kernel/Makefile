@@ -1,5 +1,8 @@
 include Makefile.inc
 
+MM_STRATEGY ?= MEMORY_MANAGER_BUDDY
+MM_DEFINE := -DMEMORY_MANAGER_STRATEGY=$(MM_STRATEGY)
+
 KERNEL=kernel.bin
 KERNEL_ELF=kernel.elf
 SOURCES=$(wildcard *.c ./drivers/*.c ./idt/*.c)
@@ -24,10 +27,10 @@ $(KERNEL): $(KERNEL_ELF)
 	objcopy -O binary $(KERNEL_ELF) $(KERNEL)
 
 $(HOT_OBJECTS) : %.o: %.c
-	$(GCC) -O3 $(GCCFLAGS) -I./include -c $< -o $@
+	$(GCC) -O3 $(GCCFLAGS) $(MM_DEFINE) -I./include -c $< -o $@
 
 $(filter-out $(HOT_OBJECTS),$(OBJECTS)) : %.o: %.c
-	$(GCC) $(GCCFLAGS) -I./include -I./font_assets -c $< -o $@
+	$(GCC) $(GCCFLAGS) $(MM_DEFINE) -I./include -I./font_assets -c $< -o $@
 
 %.o : %.asm
 	$(ASM) $(ASMFLAGS) $< -o $@

@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include "./../libc/stdio.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
@@ -18,6 +18,8 @@
 #define FG_COL_WIDTH 4
 #define PRIORITY_COL_WIDTH 8
 #define NAME_COL_WIDTH 8
+#define STACK_COL_WIDTH 10
+#define BASE_COL_WIDTH 10
 #define COLUMN_PADDING 2
 
 #define INC_MOD(x, m) x = (((x) + 1) % (m))
@@ -34,7 +36,10 @@ int fontdec(void);
 int font(void);
 int help(void);
 int history(void);
+int block(void);
 int man(void);
+int memcmd(void);
+int killcmd(void);
 int regs(void);
 int time(void);
 int ps(void);
@@ -45,6 +50,7 @@ static void printSpaces(int count);
 static int digitsForInt(int value);
 static void printIntColumn(int value, int width);
 static void printStringColumn(const char *value, int width);
+static int parsePid(const char *arg, int *pidOut);
 
 static uint8_t last_command_arrowed = 0;
 
@@ -56,6 +62,7 @@ typedef struct {
 
 /* All available commands. Sorted alphabetically by their name */
 Command commands[] = {
+    { .name = "block",          .function = (int (*)(void))(unsigned long long)block,          .description = "Toggles a process between BLOCKED and READY" },
     { .name = "clear",          .function = (int (*)(void))(unsigned long long)clear,           .description = "Clears the screen" },
     { .name = "divzero",        .function = (int (*)(void))(unsigned long long)_divzero,        .description = "Generates a division by zero exception" },
     { .name = "echo",           .function = (int (*)(void))(unsigned long long)echo ,           .description = "Prints the input string" },
@@ -64,7 +71,9 @@ Command commands[] = {
     { .name = "help",           .function = (int (*)(void))(unsigned long long)help,            .description = "Prints the available commands" },
     { .name = "history",        .function = (int (*)(void))(unsigned long long)history,         .description = "Prints the command history" },
     { .name = "invop",          .function = (int (*)(void))(unsigned long long)_invalidopcode,  .description = "Generates an invalid Opcode exception" },
+    { .name = "kill",           .function = (int (*)(void))(unsigned long long)killcmd,         .description = "Kills a process by PID" },
     { .name = "man",            .function = (int (*)(void))(unsigned long long)man,             .description = "Prints the description of the provided command" },
+    { .name = "mem",            .function = (int (*)(void))(unsigned long long)memcmd,          .description = "Displays kernel memory usage" },
     { .name = "ps",             .function = (int (*)(void))(unsigned long long)ps,              .description = "Prints the process list" },
     { .name = "regs",           .function = (int (*)(void))(unsigned long long)regs,            .description = "Prints the register snapshot, if any" },
     { .name = "time",           .function = (int (*)(void))(unsigned long long)time,            .description = "Prints the current time" },
@@ -265,6 +274,69 @@ int man(void) {
     return 1;
 }
 
+int killcmd(void) {
+    char *arg = strtok(NULL, " ");
+    if (arg == NULL) {
+        perror("Missing PID\n");
+        return 1;
+    }
+
+    int pid = 0;
+    if (parsePid(arg, &pid) != 0) {
+        perror("Invalid PID\n");
+        return 1;
+    }
+    int32_t res = killProcess(pid);
+    if (res == 0) {
+        printf("Process %d killed\n", pid);
+        return 0;
+    }
+
+    perror("Failed to kill process\n");
+    return 1;
+}
+
+int block(void) {
+    char *arg = strtok(NULL, " ");
+    if (arg == NULL) {
+        perror("Missing PID\n");
+        return 1;
+    }
+
+    int pid = 0;
+    if (parsePid(arg, &pid) != 0) {
+        perror("Invalid PID\n");
+        return 1;
+    }
+    int32_t state = toggleBlockProcess(pid);
+
+    if (state == BLOCKED) {
+        printf("Process %d blocked\n", pid);
+        return 0;
+    }
+
+    if (state == READY) {
+        printf("Process %d ready\n", pid);
+        return 0;
+    }
+
+    perror("Failed to toggle process\n");
+    return 1;
+}
+
+int memcmd(void) {
+    char info[160] = {0};
+    int32_t written = getMemoryState(info, sizeof(info));
+
+    if (written <= 0) {
+        perror("Failed to read memory state\n");
+        return 1;
+    }
+
+    printf("%s\n", info);
+    return 0;
+}
+
 int ps(void) {
     ProcessInfo processes[PROCESS_SNAPSHOT_CAP] = {0};
     int32_t count = getProcesses(processes, PROCESS_SNAPSHOT_CAP);
@@ -291,6 +363,10 @@ int ps(void) {
     printStringColumn("PRIORITY", PRIORITY_COL_WIDTH);
     printSpaces(COLUMN_PADDING);
     printStringColumn("FG/BG", FG_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
+    printStringColumn("STACK", STACK_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
+    printStringColumn("BASE", BASE_COL_WIDTH);
     printf("\n");
 
     for (int i = 0; i < count; i++) {
@@ -311,6 +387,10 @@ int ps(void) {
         char* fg = info->foreground ? "FG" : "BG";
         printSpaces(COLUMN_PADDING);
         printStringColumn(fg, FG_COL_WIDTH);
+        printSpaces(COLUMN_PADDING);
+        printIntColumn((int)info->stackPointer, STACK_COL_WIDTH);
+        printSpaces(COLUMN_PADDING);
+        printIntColumn((int)info->basePointer, BASE_COL_WIDTH);
         printf("\n");
     }
 
@@ -385,5 +465,40 @@ static void printStringColumn(const char *value, int width) {
     if (len < width) {
         printSpaces(width - len);
     }
+}
+
+static int parsePid(const char *arg, int *pidOut) {
+    if (arg == NULL || pidOut == NULL || *arg == '\0') {
+        return -1;
+    }
+
+    int sign = 1;
+    size_t index = 0;
+
+    if (arg[index] == '+') {
+        index++;
+    } else if (arg[index] == '-') {
+        sign = -1;
+        index++;
+    }
+
+    int value = 0;
+    int digits = 0;
+
+    for (; arg[index] != '\0'; index++) {
+        char c = arg[index];
+        if (c < '0' || c > '9') {
+            return -1;
+        }
+        value = value * 10 + (c - '0');
+        digits++;
+    }
+
+    if (digits == 0) {
+        return -1;
+    }
+
+    *pidOut = sign * value;
+    return 0;
 }
 
