@@ -199,6 +199,52 @@ int toggleProcessBlock(int pid)
     return -1;
 }
 
+int setProcessPriority(int pid, int priority)
+{
+    if (priority < MIN_PRIORITY || priority >= MAX_PRIORITIES)
+    {
+        return -1;
+    }
+
+    if (pid == IDLE_PID)
+    {
+        return -1;
+    }
+
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        Process *p = &processTable[i];
+
+        if (p->pid != pid || p->state == TERMINATED)
+        {
+            continue;
+        }
+
+        if (p->priority == priority)
+        {
+            return 0;
+        }
+
+        bool wasReady = (p->state == READY);
+
+        if (wasReady)
+        {
+            unschedule(p);
+        }
+
+        p->priority = priority;
+
+        if (wasReady)
+        {
+            schedulerAddProcess(p);
+        }
+
+        return 0;
+    }
+
+    return -1;
+}
+
 Process *getCurrentProcess()
 {
     if (currentPid <= 0 || currentPid > MAX_PROCESSES)

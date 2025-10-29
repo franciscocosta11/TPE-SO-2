@@ -121,5 +121,6 @@ int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity);
 int32_t killProcess(int32_t pid);
 int32_t toggleBlockProcess(int32_t pid);
 int32_t getMemoryState(char *buffer, uint64_t capacity);
+int32_t setProcessPriority(int32_t pid, int32_t priority);
 
 #endif

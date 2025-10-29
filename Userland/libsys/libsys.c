@@ -99,3 +99,7 @@ int32_t toggleBlockProcess(int32_t pid) {
 int32_t getMemoryState(char *buffer, uint64_t capacity) {
     return sys_get_memory_state(buffer, capacity);
 }
+
+int32_t setProcessPriority(int32_t pid, int32_t priority) {
+    return sys_set_process_priority(pid, priority);
+}

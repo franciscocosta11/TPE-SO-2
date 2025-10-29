@@ -69,8 +69,8 @@ int main(){
 	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, BACKGROUND);
 	
 	char *shellArgs[] = { "shell" };
-	void (*shell_entry_point)(void*) = (void (*)(void*))shellModuleAddress; // no sé si es necesario este casteo
-	createProcess("shell", shell_entry_point, shellArgs, 1, NULL, 0, FOREGROUND);
+	void (*shellEntryPoint)(void*) = (void (*)(void*))shellModuleAddress; // no sé si es necesario este casteo
+	createProcess("shell", shellEntryPoint, shellArgs, 1, NULL, 0, FOREGROUND);
 
 	_sti();
 

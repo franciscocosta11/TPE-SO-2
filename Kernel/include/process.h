@@ -11,8 +11,9 @@ extern int currentPid; // el primer proceso current va a ser el primero en inici
 extern int availableProcesses;
 
 #define MAX_PROCESSES 16
-#define MIN_PRIORITY 0
-#define MAX_PRIORITY 3
+#define MIN_PRIORITY PROCESS_PRIORITY_MIN
+#define MAX_PRIORITY PROCESS_PRIORITY_MAX
+#define IDLE_PID PROCESS_IDLE_PID
 
 #define FOREGROUND true
 #define BACKGROUND false
@@ -115,6 +116,7 @@ void exitCurrentProcess(int ExitCode);
 //! Agregar comentario
 int killProcess(int pid);
 int toggleProcessBlock(int pid);
+int setProcessPriority(int pid, int priority);
 
 // ============= HELPERS =============
 

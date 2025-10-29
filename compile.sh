@@ -1,5 +1,7 @@
 # Validates the existance of the TPE-ARQ container, starts it up & compiles the project
 CONTAINER_NAME="TPE-ARQ-g08-64018-64288-64646"
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
 
 # COLORS
 RED='\033[0;31m'
@@ -42,5 +44,7 @@ if [ $? -ne 0 ]; then
     echo "${RED}Compilation failed.${NC}"
     exit 1
 fi
+
+docker exec "$CONTAINER_NAME" sh -c "chown -R ${HOST_UID}:${HOST_GID} /root"
 
 echo "${GREEN}Compilation finished.${NC}"

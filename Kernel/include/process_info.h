@@ -11,6 +11,10 @@ typedef enum {
     BLOCKED
 } ProcessState;
 
+#define PROCESS_PRIORITY_MIN 0
+#define PROCESS_PRIORITY_MAX 3
+#define PROCESS_IDLE_PID 1
+
 typedef struct {
     int pid;
     ProcessState state;

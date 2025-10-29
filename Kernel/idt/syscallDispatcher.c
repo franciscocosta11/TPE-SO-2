@@ -58,6 +58,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x800000F2: return sys_kill_process((int32_t)registers->rdi);
 		case 0x800000F3: return sys_toggle_block_process((int32_t)registers->rdi);
 		case 0x800000F4: return sys_get_memory_state((char *)registers->rdi, registers->rsi);
+		case 0x800000F5: return sys_set_process_priority((int32_t)registers->rdi, (int32_t)registers->rsi);
 		
 		default:
             return 0;
@@ -179,6 +180,10 @@ int32_t sys_get_memory_state(char *userBuffer, uint64_t capacity) {
 	}
 
 	return (int32_t)len;
+}
+
+int32_t sys_set_process_priority(int32_t pid, int32_t priority) {
+	return setProcessPriority(pid, priority);
 }
 
 // ==================================================================
