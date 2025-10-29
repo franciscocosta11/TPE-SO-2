@@ -2,6 +2,7 @@
 #define PROCESS_INFO_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // Shared representation of process state exposed to userland for inspection
 typedef enum {
@@ -16,6 +17,8 @@ typedef struct {
     int pid;
     ProcessState state;
     int priority;
+    char* name;
+    bool foreground;
 } ProcessInfo;
 
 #endif // PROCESS_INFO_H

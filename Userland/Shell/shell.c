@@ -15,7 +15,9 @@
 #define PROCESS_SNAPSHOT_CAP 32
 #define PID_COL_WIDTH 3
 #define STATE_COL_WIDTH 9
+#define FG_COL_WIDTH 4
 #define PRIORITY_COL_WIDTH 8
+#define NAME_COL_WIDTH 8
 #define COLUMN_PADDING 2
 
 #define INC_MOD(x, m) x = (((x) + 1) % (m))
@@ -267,6 +269,7 @@ int ps(void) {
     ProcessInfo processes[PROCESS_SNAPSHOT_CAP] = {0};
     int32_t count = getProcesses(processes, PROCESS_SNAPSHOT_CAP);
 
+    // bastante raro si entra aca...
     if (count <= 0) {
         printf("No active processes\n");
         return 0;
@@ -281,9 +284,13 @@ int ps(void) {
 
     printStringColumn("PID", PID_COL_WIDTH);
     printSpaces(COLUMN_PADDING);
+    printStringColumn("NAME", NAME_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
     printStringColumn("STATE", STATE_COL_WIDTH);
     printSpaces(COLUMN_PADDING);
     printStringColumn("PRIORITY", PRIORITY_COL_WIDTH);
+    printSpaces(COLUMN_PADDING);
+    printStringColumn("FG/BG", FG_COL_WIDTH);
     printf("\n");
 
     for (int i = 0; i < count; i++) {
@@ -296,9 +303,14 @@ int ps(void) {
 
         printIntColumn(info->pid, PID_COL_WIDTH);
         printSpaces(COLUMN_PADDING);
+        printStringColumn(info->name, NAME_COL_WIDTH);
+        printSpaces(COLUMN_PADDING);
         printStringColumn(state, STATE_COL_WIDTH);
         printSpaces(COLUMN_PADDING);
         printIntColumn(info->priority, PRIORITY_COL_WIDTH);
+        char* fg = info->foreground ? "FG" : "BG";
+        printSpaces(COLUMN_PADDING);
+        printStringColumn(fg, FG_COL_WIDTH);
         printf("\n");
     }
 

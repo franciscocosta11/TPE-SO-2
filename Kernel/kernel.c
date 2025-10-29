@@ -9,6 +9,7 @@
 #include <sound.h>
 #include "process.h"
 #include "scheduler.h"
+#include "MemoryManager.h"
 
 // extern uint8_t text;
 // extern uint8_t rodata;
@@ -68,12 +69,12 @@ int main(){
 
 
 	char *idleArgs[] = { "idle" };
-	
-	createProcess(&idleProcessMain, idleArgs, 1, NULL, 0);
+	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, BACKGROUND);
 	
 	char *shellArgs[] = { "shell" };
 	void (*shell_entry_point)(void*) = (void (*)(void*))shellModuleAddress; // no sé si es necesario este casteo
-	createProcess(shell_entry_point, shellArgs, 1, NULL, 0);
+	createProcess("shell", shell_entry_point, shellArgs, 1, NULL, 0, FOREGROUND);
+
 	_sti();
 
 	// Si por algún motivo no había procesos listos, continuamos aquí

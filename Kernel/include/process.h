@@ -14,6 +14,8 @@ extern int availableProcesses;
 #define MIN_PRIORITY 0
 #define MAX_PRIORITY 3
 
+#define FOREGROUND true
+#define BACKGROUND false
 // Configuración
 #define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
 
@@ -37,7 +39,7 @@ typedef struct
     uint64_t rbx;
     uint64_t rax;
 
-    // --- Stack frame de iretq (simulado) ---
+    // Stack frame de iretq 
     uint64_t rip;
     uint64_t cs;
     uint64_t rflags;
@@ -72,6 +74,9 @@ typedef struct Process
     uint64_t ctx;  //! Puntero al contexto --> REVISAR
     int priority;
 
+    char* name;
+    bool isForeground;
+
     struct Process *next; // siguiente en la lista
 
     void (*entry)(void *); // entry point
@@ -98,7 +103,7 @@ void initProcessSystem(void);
  * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
  *         slots libres o stack inválido).
  */
-Process *createProcess(void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize);
+Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize, bool isForeground);
 
 /**
  * @brief Termina el proceso actual con el código de salida indicado.

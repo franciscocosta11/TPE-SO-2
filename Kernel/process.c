@@ -1,5 +1,3 @@
-// process.c — Gestión de procesos (PCB + tabla + helpers)
-
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -8,7 +6,6 @@
 #include "process.h"
 #include "MemoryManager.h"
 #include "scheduler.h"
-// Para _hlt usado en el trampolín
 #include "interrupts.h"
 #include "lib.h"
 
@@ -16,24 +13,6 @@ int currentPid = 0; // el primer proceso current va a ser el primero en iniciali
 int availableProcesses = 0;
 
 Process processTable[MAX_PROCESSES]; // tabla de procesos
-
-// Trampolín de arranque: se entra aquí al primer cambio de contexto de un
-// proceso recién creado. Llama a la entry y, si retorna, termina el proceso.
-static void processBootstrap(void)
-{
-    Process *p = getCurrentProcess();
-    if (p && p->entry)
-    {
-        p->entry(p->Arg);
-    }
-    // Si retorna, finalizar ordenadamente
-    exitCurrentProcess(0);
-    // No debería volver
-    for (;;)
-    {
-        _hlt();
-    }
-}
 
 void initProcessSystem(void)
 {
@@ -54,7 +33,7 @@ void initProcessSystem(void)
     initScheduler();
 }
 
-Process *createProcess(void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize)
+Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, bool isForeground)
 {
     if (Entry == NULL)
         return NULL;
@@ -82,6 +61,8 @@ Process *createProcess(void (*Entry)(void *), char **Argv, int Argc, void *Stack
     p->Arg = Argv;
     p->next = NULL;
     p->priority = MIN_PRIORITY;
+    p->name = name;
+    p->isForeground = isForeground;
 
     size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
     void *stk = allocMemory(sz);
@@ -211,7 +192,9 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount)
         buffer[written].pid = process->pid;
         buffer[written].state = process->state;
         buffer[written].priority = process->priority;
-
+        buffer[written].name = process->name;
+        buffer[written].foreground = process->isForeground;
+        
         written++;
     }
 
