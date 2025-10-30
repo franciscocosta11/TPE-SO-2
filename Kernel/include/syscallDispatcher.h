@@ -60,6 +60,7 @@ int32_t sys_exec(int32_t (*fnPtr)(void));
 
 // Custom keyboard syscall prototypes
 int32_t sys_register_key(uint8_t scancode, SpecialKeyHandler fn);
+int32_t sys_register_ctrl_key(uint8_t scancode, SpecialKeyHandler fn);
 
 // System sleep
 int32_t sys_sleep_milis(uint32_t milis);
@@ -74,5 +75,6 @@ int32_t sys_get_processes(ProcessInfo *userBuffer, uint64_t capacity);
 int32_t sys_kill_process(int32_t pid);
 int32_t sys_toggle_block_process(int32_t pid);
 int32_t sys_get_memory_state(char *userBuffer, uint64_t capacity);
+int32_t sys_set_process_priority(int32_t pid, int32_t priority);
 
 #endif

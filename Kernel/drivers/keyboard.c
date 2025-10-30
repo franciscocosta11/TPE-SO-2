@@ -42,6 +42,7 @@ typedef struct {
 } RegisteredKeys;
 
 static RegisteredKeys KeyFnMap[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
+static RegisteredKeys ControlKeyFnMap[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
 
 // QEMU source https://github.com/qemu/qemu/blob/master/pc-bios/keymaps/en-us
 // http://flint.cs.yale.edu/feng/cos/resources/BIOS/Resources/assembly/makecodes.html
@@ -156,6 +157,23 @@ void clearKeyFnMapNonKernel(SpecialKeyHandler * map) {
     }
 }
 
+void restoreControlKeyFnMapNonKernel(SpecialKeyHandler * map) {
+    for (uint8_t i = ESCAPE_KEY; i < F12_KEY; i++) {
+        if (ControlKeyFnMap[i].registered_from_kernel == 0) {
+            ControlKeyFnMap[i].fn = map[i];
+        }
+    }
+}
+
+void clearControlKeyFnMapNonKernel(SpecialKeyHandler * map) {
+    for (uint8_t i = ESCAPE_KEY; i < F12_KEY; i++) {
+        if (ControlKeyFnMap[i].registered_from_kernel == 0) {
+            map[i] = ControlKeyFnMap[i].fn;
+            ControlKeyFnMap[i].fn = NULL;
+        }
+    }
+}
+
 uint8_t registerSpecialKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel) {
     if (IS_KEYCODE(scancode) && ((registeredFromKernel != 0 || (registeredFromKernel == 0 && KeyFnMap[scancode].fn == NULL)))) {
         KeyFnMap[scancode].fn = fn;
@@ -163,6 +181,15 @@ uint8_t registerSpecialKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t reg
         return 1;
     }
 
+    return 0;
+}
+
+uint8_t registerControlKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel) {
+    if (IS_KEYCODE(scancode) && ((registeredFromKernel != 0) || (registeredFromKernel == 0 && ControlKeyFnMap[scancode].fn == NULL))) {
+        ControlKeyFnMap[scancode].fn = fn;
+        ControlKeyFnMap[scancode].registered_from_kernel = registeredFromKernel;
+        return 1;
+    }
     return 0;
 }
 
@@ -233,13 +260,14 @@ int8_t getKeyboardCharacter(enum KEYBOARD_OPTIONS ops) {
 uint8_t keyboardHandler(){
     uint8_t scancode = getKeyboardBuffer();
     uint8_t is_pressed = isPressed(scancode);
+    uint8_t code = makeCode(scancode);
 
     if(BUFFER_IS_FULL){
         to_read = to_write = 0;
         return scancode; // do not write to buffer anymore, subsequent keys are not processed into the buffer
     }
     
-    switch (makeCode(scancode)) {
+    switch (code) {
         case SHIFT_KEY_L:
         case SHIFT_KEY_R:
             SHIFT_KEY_PRESSED = is_pressed;
@@ -256,6 +284,11 @@ uint8_t keyboardHandler(){
     }
     
     if (! (is_pressed && IS_KEYCODE(scancode)) ) return scancode; // ignore break or unsupported scancodes
+
+    if (CONTROL_KEY_PRESSED && code >= ESCAPE_KEY && code <= F12_KEY && ControlKeyFnMap[code].fn != NULL) {
+        ControlKeyFnMap[code].fn(code);
+        return scancode;
+    }
     
     if ((keyboard_options & MODIFY_BUFFER) != 0) {
         int8_t c = scancodeMap[scancode][SHIFT_KEY_PRESSED];

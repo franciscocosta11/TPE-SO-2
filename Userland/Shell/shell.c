@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <sys.h>
 #include <exceptions.h>
@@ -44,6 +45,7 @@ int regs(void);
 int time(void);
 int ps(void);
 int nice(void);
+int test_mm_command(void);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -52,8 +54,12 @@ static int digitsForInt(int value);
 static void printIntColumn(int value, int width);
 static void printStringColumn(const char *value, int width);
 static int parsePid(const char *arg, int *pidOut);
+static void handleCtrlC(enum REGISTERABLE_KEYS scancode);
+uint8_t ctrlCIsPending(void);
+static void consumeCtrlC(void);
 
 static uint8_t last_command_arrowed = 0;
+static volatile uint8_t ctrl_c_requested = 0;
 
 typedef struct
 {
@@ -79,6 +85,7 @@ Command commands[] = {
     {.name = "nice", .function = (int (*)(void))(unsigned long long)nice, .description = "Changes a process priority"},
     {.name = "ps", .function = (int (*)(void))(unsigned long long)ps, .description = "Prints the process list"},
     {.name = "regs", .function = (int (*)(void))(unsigned long long)regs, .description = "Prints the register snapshot, if any"},
+    {.name = "test_mm", .function = (int (*)(void))(unsigned long long)test_mm_command, .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
     {.name = "time", .function = (int (*)(void))(unsigned long long)time, .description = "Prints the current time"},
 };
 
@@ -88,12 +95,15 @@ uint8_t command_history_last = 0;
 
 static uint64_t last_command_output = 0;
 
+extern uint64_t test_mm(uint64_t argc, char *argv[]);
+
 int main()
 {
     clear();
 
     registerKey(KP_UP_KEY, printPreviousCommand);
     registerKey(KP_DOWN_KEY, printNextCommand);
+    registerControlKey(C_KEY, handleCtrlC);
 
     while (1)
     {
@@ -109,6 +119,11 @@ int main()
 
         buffer[buffer_dim] = 0;
         command_history_buffer[buffer_dim] = 0;
+
+        if (ctrlCIsPending() && buffer_dim == 0)
+        {
+            consumeCtrlC();
+        }
 
         if (buffer_dim == MAX_BUFFER_SIZE)
         {
@@ -177,6 +192,28 @@ static void printNextCommand(enum REGISTERABLE_KEYS scancode)
     }
 }
 
+static void handleCtrlC(enum REGISTERABLE_KEYS scancode)
+{
+    (void)scancode;
+    clearInputBuffer();
+    fprintf(FD_STDOUT, "^C");
+    fprintf(FD_STDIN, "\n");
+    buffer_dim = 0;
+    buffer[0] = 0;
+    command_history_buffer[0] = 0;
+    ctrl_c_requested = 1;
+}
+
+uint8_t ctrlCIsPending(void)
+{
+    return ctrl_c_requested;
+}
+
+static void consumeCtrlC(void)
+{
+    ctrl_c_requested = 0;
+}
+
 int history(void)
 {
     uint8_t last = command_history_last;
@@ -197,6 +234,41 @@ int time(void)
     getDate(&hour, &minute, &second);
     printf("Current time: %xh %xm %xs\n", hour, minute, second);
     return 0;
+}
+
+int test_mm_command(void)
+{
+    char *arg = strtok(NULL, " ");
+
+    if (arg == NULL)
+    {
+        fprintf(FD_STDERR, "Usage: test_mm <max_memory_bytes>\n");
+        return 1;
+    }
+
+    if (strtok(NULL, " ") != NULL)
+    {
+        fprintf(FD_STDERR, "test_mm accepts exactly one parameter\n");
+        return 1;
+    }
+
+    char *argv[] = {arg};
+
+    printf("test_mm running with max %s bytes. Press CTRL+C to stop.\n", arg);
+
+    while (!ctrlCIsPending())
+    {
+        uint64_t result = test_mm(1, argv);
+        if (result != 0)
+        {
+            long long signed_result = (long long)result;
+            fprintf(FD_STDERR, "test_mm stopped with code %lld\n", signed_result);
+            return (int)signed_result;
+        }
+    }
+
+    consumeCtrlC();
+    return 130;
 }
 
 int echo(void)

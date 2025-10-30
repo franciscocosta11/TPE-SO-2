@@ -45,6 +45,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x800000A0: return sys_exec((int (*)(void)) registers->rdi);
 
 		case 0x800000B0: return sys_register_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
+		case 0x800000B1: return sys_register_ctrl_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
 
 		case 0x800000C0: return sys_window_width();
 		case 0x800000C1: return sys_window_height();
@@ -237,11 +238,14 @@ int32_t sys_exec(int32_t (*fnPtr)(void)) {
 	uint32_t background_color = getBackgroundColor();	// preserve background color
 	
 	SpecialKeyHandler map[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
+	SpecialKeyHandler controlMap[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
 	clearKeyFnMapNonKernel(map); // avoid """processes/threads/apps""" registering keys across each other over time. reset the map every time
+	clearControlKeyFnMapNonKernel(controlMap);
 	
 	int32_t aux = fnPtr();
 
 	restoreKeyFnMapNonKernel(map);
+	restoreControlKeyFnMapNonKernel(controlMap);
 	setFontSize(fontSize);
 	setTextColor(text_color);
 	setBackgroundColor(background_color);
@@ -256,6 +260,11 @@ int32_t sys_exec(int32_t (*fnPtr)(void)) {
 
 int32_t sys_register_key(uint8_t scancode, SpecialKeyHandler fn){
 	registerSpecialKey(scancode, fn, 0);
+	return 0;
+}
+
+int32_t sys_register_ctrl_key(uint8_t scancode, SpecialKeyHandler fn){
+	registerControlKey(scancode, fn, 0);
 	return 0;
 }
 

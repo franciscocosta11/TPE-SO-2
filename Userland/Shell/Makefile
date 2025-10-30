@@ -1,7 +1,7 @@
 include ../Makefile.inc
 
 MODULE=shell.bin
-SOURCES=$(wildcard [^_]*.c)
+SOURCES=$(wildcard [^_]*.c) ../test/test_mm.c ../test/test_util.c ../../Kernel/buddyMemoryManager.c
 
 all: $(MODULE)
 
