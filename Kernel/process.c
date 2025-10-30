@@ -34,7 +34,7 @@ void initProcessSystem(void)
     initScheduler();
 }
 
-Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, bool isForeground)
+Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, int priority, bool isForeground)
 {
     if (Entry == NULL)
         return NULL;
@@ -61,7 +61,7 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
     p->entry = Entry;
     p->Arg = Argv;
     p->next = NULL;
-    p->priority = MIN_PRIORITY;
+    p->priority = priority;
     p->name = name;
     p->isForeground = isForeground;
 
@@ -286,7 +286,7 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount)
         uint64_t basePointer = 0;
         if (ctx != 0)
         {
-            StackFrame *frame = (StackFrame *)ctx;
+            StackFrame *frame = (StackFrame *)ctx; // ctx es rip
             basePointer = frame->rbp;
         }
         buffer[written].basePointer = basePointer;

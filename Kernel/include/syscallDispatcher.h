@@ -76,5 +76,6 @@ int32_t sys_kill_process(int32_t pid);
 int32_t sys_toggle_block_process(int32_t pid);
 int32_t sys_get_memory_state(char *userBuffer, uint64_t capacity);
 int32_t sys_set_process_priority(int32_t pid, int32_t priority);
+int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, int priority, uint8_t isForeground);
 
 #endif

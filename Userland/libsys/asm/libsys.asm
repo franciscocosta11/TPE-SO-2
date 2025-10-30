@@ -34,6 +34,7 @@ GLOBAL sys_kill_process
 GLOBAL sys_toggle_block_process
 GLOBAL sys_get_memory_state
 GLOBAL sys_set_process_priority
+GLOBAL sys_create_process
 
 section .text
 
@@ -88,3 +89,4 @@ sys_kill_process: sys_int80 0x800000F2
 sys_toggle_block_process: sys_int80 0x800000F3
 sys_get_memory_state: sys_int80 0x800000F4
 sys_set_process_priority: sys_int80 0x800000F5
+sys_create_process: sys_int80 0x800000F6

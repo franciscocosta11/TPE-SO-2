@@ -104,7 +104,7 @@ void initProcessSystem(void);
  * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
  *         slots libres o stack inválido).
  */
-Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize, bool isForeground);
+Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize, int priority, bool isForeground);
 
 /**
  * @brief Termina el proceso actual con el código de salida indicado.

@@ -143,7 +143,9 @@ int main()
         {
             if (strcmp(commands[i].name, command) == 0)
             {
-                last_command_output = commands[i].function();
+                int pid = createProcess(commands[i].name, commands[i].function, 0, 0, 0, 0, 0, 0);
+
+                // last_command_output = commands[i].function();
                 strncpy(command_history[command_history_last], command_history_buffer, 255);
                 command_history[command_history_last][buffer_dim] = '\0';
                 INC_MOD(command_history_last, HISTORY_SIZE);
@@ -598,6 +600,16 @@ int nice(void)
 
     perror("No se pudo actualizar la prioridad\n");
     return 1;
+}
+
+int backgroundTest(void)
+{
+    while (1)
+    {
+        putchar('.');
+        sleep(1000);
+    }
+    return 0;
 }
 
 // Utils de formateo para printear tablas
