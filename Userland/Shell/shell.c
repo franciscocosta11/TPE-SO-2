@@ -23,6 +23,8 @@
 #define BASE_COL_WIDTH 10
 #define COLUMN_PADDING 2
 
+#define FOREGROUND 1
+
 #define INC_MOD(x, m) x = (((x) + 1) % (m))
 #define SUB_MOD(a, b, m) ((a) - (b) < 0 ? (m) - (b) + (a) : (a) - (b))
 #define DEC_MOD(x, m) ((x) = SUB_MOD(x, 1, m))
@@ -46,6 +48,8 @@ int time(void);
 int ps(void);
 int nice(void);
 int test_mm_command(void);
+int sleep2(void);
+static void sleep2_sleeper(void *arg);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -87,6 +91,7 @@ Command commands[] = {
     {.name = "regs", .function = (int (*)(void))(unsigned long long)regs, .description = "Prints the register snapshot, if any"},
     {.name = "test_mm", .function = (int (*)(void))(unsigned long long)test_mm_command, .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
     {.name = "time", .function = (int (*)(void))(unsigned long long)time, .description = "Prints the current time"},
+    {.name = "sleep2", .function = (int (*)(void))(unsigned long long)sleep2, .description = "Runs a foreground process that sleeps 2 seconds"},
 };
 
 char command_history[HISTORY_SIZE][MAX_BUFFER_SIZE] = {0};
@@ -609,6 +614,29 @@ int backgroundTest(void)
         putchar('.');
         sleep(1000);
     }
+    return 0;
+}
+
+// Foreground sleep process demo
+static void sleep2_sleeper(void *arg)
+{
+    (void)arg;
+    sleep(2000);
+    exitProcess(0);
+}
+
+int sleep2(void)
+{
+    int pid = createProcess("sleep2", sleep2_sleeper, 0, 0, 0, 0, 0, FOREGROUND);
+    if (pid <= 0)
+    {
+        perror("Failed to create sleep2 process\n");
+        return 1;
+    }
+
+    // Block shell until the foreground process completes
+    waitProcess(pid);
+    printf("sleep2: done\n");
     return 0;
 }
 

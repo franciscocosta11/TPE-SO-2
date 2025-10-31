@@ -115,3 +115,7 @@ int32_t createProcess(char* name, void (*entry)(void *), char **argv, uint32_t a
 int32_t waitProcess(int32_t pid) {
     return sys_wait_process(pid);
 }
+
+void exitProcess(int32_t code) {
+    sys_exit(code);
+}

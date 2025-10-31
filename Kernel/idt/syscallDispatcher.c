@@ -9,6 +9,7 @@
 #include <process.h>
 #include <MemoryManager.h>
 #include <string.h>
+#include <interrupts.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
@@ -43,6 +44,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x80000021: return sys_fill_video_memory(registers->rdi);
 
 		case 0x800000A0: return sys_exec((int (*)(void)) registers->rdi);
+        case 0x800000A1: return sys_exit((int32_t)registers->rdi);
 
 		case 0x800000B0: return sys_register_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
 		case 0x800000B1: return sys_register_ctrl_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
@@ -193,6 +195,13 @@ int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint3
 int32_t sys_wait_process(int32_t pid) {
 	waitProcess(pid);
 	return 0;
+}
+
+int32_t sys_exit(int32_t status) {
+	exitCurrentProcess(status);
+	// Conmutar inmediatamente para no seguir ejecutando el proceso terminado
+	contextSwitch();
+	return 0; // No debería alcanzarse
 }
 
 // ==================================================================
