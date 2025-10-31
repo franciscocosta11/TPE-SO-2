@@ -61,6 +61,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x800000F4: return sys_get_memory_state((char *)registers->rdi, registers->rsi);
 		case 0x800000F5: return sys_set_process_priority((int32_t)registers->rdi, (int32_t)registers->rsi);
 		case 0x800000F6: return sys_create_process((char *)registers->rdi, (void (*)(void *)) registers->rsi, (char **) registers->rdx, (uint32_t) registers->rcx, (void *) registers->r8, (uint64_t) registers->r9, (int) registers->r10 ,(uint8_t) registers->r11);
+        case 0x800000F7: return sys_wait_process((int32_t)registers->rdi);
 	}
 }
 
@@ -187,6 +188,11 @@ int32_t sys_set_process_priority(int32_t pid, int32_t priority) {
 
 int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, int priority, uint8_t isForeground) {
 	return createProcess(name, entry, argv, argc, stackBase, stackSize, priority, isForeground)->pid;
+}
+
+int32_t sys_wait_process(int32_t pid) {
+	waitProcess(pid);
+	return 0;
 }
 
 // ==================================================================

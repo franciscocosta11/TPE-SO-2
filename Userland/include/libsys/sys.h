@@ -124,5 +124,6 @@ int32_t toggleBlockProcess(int32_t pid);
 int32_t getMemoryState(char *buffer, uint64_t capacity);
 int32_t setProcessPriority(int32_t pid, int32_t priority);
 int32_t createProcess(char* name, void (*entry)(void *), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, uint8_t priority, uint8_t isForeground);
+int32_t waitProcess(int32_t pid);
 
 #endif

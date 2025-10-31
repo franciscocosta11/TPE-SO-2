@@ -69,17 +69,14 @@ typedef struct Process
 {
     int pid;            // identificador del proceso
     ProcessState state; // estado actual del proceso (ready running blocked etc)
-
     void *stackBase;  // base del stack --> para la posterior liberacion
     size_t stackSize; // tamaÑo del stack
     uint64_t ctx;  //! Puntero al contexto --> REVISAR
     int priority;
-
     char* name;
     bool isForeground;
-
     struct Process *next; // siguiente en la lista
-
+    int waiterPid;
     void (*entry)(void *); // entry point
     char **Arg;             // argumento inicial
 } Process;
@@ -117,6 +114,8 @@ void exitCurrentProcess(int ExitCode);
 int killProcess(int pid);
 int toggleProcessBlock(int pid);
 int setProcessPriority(int pid, int priority);
+int unblockProcess(int pid);
+void waitProcess(int pid);
 
 // ============= HELPERS =============
 
@@ -138,5 +137,13 @@ Process *getCurrentProcess(void);
 int getCurrentPid(void);
 
 size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
+
+/**
+ * @brief Busca un proceso por su PID y devuelve su PCB.
+ *
+ * @param pid Identificador del proceso a buscar.
+ * @return Puntero al `Process` si existe; NULL si no se encuentra.
+ */
+Process *getProcessByPid(int pid);
 
 #endif // PROCESS_H
