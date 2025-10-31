@@ -256,6 +256,14 @@ void freeMemory(void *blockAddress)
 
 		if (buddy != NULL)
 		{
+			if (freeBytes >= block_size)
+			{
+				freeBytes -= block_size;
+			}
+			else
+			{
+				freeBytes = 0;
+			}
 			current_block = ((uintptr_t)current_block < buddy_address) ? current_block : buddy;
 			order++;
 		}

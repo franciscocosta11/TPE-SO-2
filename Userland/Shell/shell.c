@@ -64,6 +64,24 @@ static void handleCtrlC(enum REGISTERABLE_KEYS scancode);
 uint8_t ctrlCIsPending(void);
 static void consumeCtrlC(void);
 
+#define TEST_MM_MAX_INSTANCES 4
+
+typedef struct
+{
+    int pid;
+    char arg[MAX_BUFFER_SIZE];
+    char *argv[1];
+} TestMmSlot;
+
+static TestMmSlot testMmSlots[TEST_MM_MAX_INSTANCES];
+static uint8_t testMmSlotsInitialized = 0;
+
+static void test_mm_slot_init(void);
+static void test_mm_cleanup_slots(void);
+static TestMmSlot *test_mm_acquire_slot(void);
+static TestMmSlot *test_mm_find_slot_by_argv(char **argv);
+static void test_mm_entry(uint64_t argc, char **argv);
+
 static uint8_t last_command_arrowed = 0;
 static volatile uint8_t ctrl_c_requested = 0;
 // Small wrappers to adapt void exception triggers to builtin(int)(void)
@@ -263,6 +281,97 @@ static void consumeCtrlC(void)
     ctrl_c_requested = 0;
 }
 
+static void test_mm_slot_init(void)
+{
+    if (testMmSlotsInitialized)
+    {
+        return;
+    }
+
+    for (int i = 0; i < TEST_MM_MAX_INSTANCES; i++)
+    {
+        testMmSlots[i].pid = 0;
+        testMmSlots[i].arg[0] = '\0';
+        testMmSlots[i].argv[0] = testMmSlots[i].arg;
+    }
+
+    testMmSlotsInitialized = 1;
+}
+
+static void test_mm_cleanup_slots(void)
+{
+    test_mm_slot_init();
+
+    ProcessInfo processes[PROCESS_SNAPSHOT_CAP] = {0};
+    int32_t count = getProcesses(processes, PROCESS_SNAPSHOT_CAP);
+
+    if (count <= 0)
+    {
+        return;
+    }
+
+    for (int i = 0; i < TEST_MM_MAX_INSTANCES; i++)
+    {
+        if (testMmSlots[i].pid <= 0)
+        {
+            continue;
+        }
+
+        int pid = testMmSlots[i].pid;
+        uint8_t found = 0;
+
+        for (int j = 0; j < count; j++)
+        {
+            if (processes[j].pid == pid)
+            {
+                found = 1;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            testMmSlots[i].pid = 0;
+            testMmSlots[i].arg[0] = '\0';
+        }
+    }
+}
+
+static TestMmSlot *test_mm_acquire_slot(void)
+{
+    test_mm_slot_init();
+
+    for (int i = 0; i < TEST_MM_MAX_INSTANCES; i++)
+    {
+        if (testMmSlots[i].pid == 0)
+        {
+            return &testMmSlots[i];
+        }
+    }
+
+    return NULL;
+}
+
+static TestMmSlot *test_mm_find_slot_by_argv(char **argv)
+{
+    if (argv == NULL)
+    {
+        return NULL;
+    }
+
+    test_mm_slot_init();
+
+    for (int i = 0; i < TEST_MM_MAX_INSTANCES; i++)
+    {
+        if (testMmSlots[i].argv == argv)
+        {
+            return &testMmSlots[i];
+        }
+    }
+
+    return NULL;
+}
+
 int history(void)
 {
     uint8_t last = command_history_last;
@@ -287,7 +396,28 @@ int time(void)
 
 int test_mm_command(void)
 {
-    char *arg = strtok(NULL, " ");
+    test_mm_slot_init();
+    test_mm_cleanup_slots();
+
+    char *arg = NULL;
+    char *token = NULL;
+
+    while ((token = strtok(NULL, " ")) != NULL)
+    {
+        if (strcmp(token, "&") == 0)
+        {
+            continue;
+        }
+
+        if (arg == NULL)
+        {
+            arg = token;
+            continue;
+        }
+
+        fprintf(FD_STDERR, "test_mm accepts exactly one parameter\n");
+        return 1;
+    }
 
     if (arg == NULL)
     {
@@ -295,29 +425,77 @@ int test_mm_command(void)
         return 1;
     }
 
-    if (strtok(NULL, " ") != NULL)
+    size_t argLen = strlen(arg);
+    if (argLen == 0 || argLen >= MAX_BUFFER_SIZE)
     {
-        fprintf(FD_STDERR, "test_mm accepts exactly one parameter\n");
+        fprintf(FD_STDERR, "test_mm argument is too long\n");
         return 1;
     }
 
-    char *argv[] = {arg};
-
-    printf("test_mm running with max %s bytes. Press CTRL+C to stop.\n", arg);
-
-    while (!ctrlCIsPending())
+    TestMmSlot *slot = test_mm_acquire_slot();
+    if (slot == NULL)
     {
-        uint64_t result = test_mm(1, argv);
+        fprintf(FD_STDERR, "test_mm is already running (max %d instances).\n", TEST_MM_MAX_INSTANCES);
+        return 1;
+    }
+
+    strncpy(slot->arg, arg, MAX_BUFFER_SIZE - 1);
+    slot->arg[MAX_BUFFER_SIZE - 1] = '\0';
+
+    slot->pid = -1;
+    int pid = createProcess("test_mm", (void (*)(void *))test_mm_entry, slot->argv, 1, 0, 0, 0, 0);
+
+    if (pid <= 0)
+    {
+        fprintf(FD_STDERR, "Failed to start test_mm process\n");
+        slot->pid = 0;
+        slot->arg[0] = '\0';
+        return 1;
+    }
+
+    slot->pid = pid;
+    printf("test_mm running in background (PID %d).\n", pid);
+    return 0;
+}
+
+static void test_mm_entry(uint64_t argc, char **argv)
+{
+    TestMmSlot *slot = test_mm_find_slot_by_argv(argv);
+    int exitCode = 0;
+
+    if (argc != 1 || argv == NULL || argv[0] == NULL)
+    {
+        fprintf(FD_STDERR, "test_mm: invalid arguments\n");
+        exitCode = -1;
+        goto cleanup;
+    }
+
+    while (1)
+    {
+        uint64_t result = test_mm(argc, argv);
         if (result != 0)
         {
             long long signed_result = (long long)result;
             fprintf(FD_STDERR, "test_mm stopped with code %lld\n", signed_result);
-            return (int)signed_result;
+            exitCode = (int)signed_result;
+            break;
+        }
+
+        if (ctrlCIsPending())
+        {
+            exitCode = 130;
+            break;
         }
     }
 
-    consumeCtrlC();
-    return 130;
+cleanup:
+    if (slot != NULL)
+    {
+        slot->pid = 0;
+        slot->arg[0] = '\0';
+    }
+
+    exitProcess(exitCode);
 }
 
 int echo(void)

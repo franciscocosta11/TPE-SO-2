@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "process.h"
+#include "MemoryManager.h"
 
 int countReadyQueue[MAX_PRIORITIES];
 processQueue readyQueue[MAX_PRIORITIES];
@@ -85,6 +86,13 @@ uint64_t schedule(uint64_t savedContext) {
         if (running->state == RUNNING) {
             running->state = READY;
             schedulerAddProcess(running);
+        } else if (running->state == TERMINATED) {
+            if (running->stackBase != NULL) {
+                freeMemory(running->stackBase);
+                running->stackBase = NULL;
+                running->stackSize = 0;
+            }
+            running->ctx = 0;
         }
     }
 
