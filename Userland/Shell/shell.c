@@ -50,6 +50,8 @@ int nice(void);
 int test_mm_command(void);
 int sleep2(void);
 static void sleep2_sleeper(void *arg);
+static void print3_entry(void *arg);
+static void ps_entry(void *arg);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -64,34 +66,51 @@ static void consumeCtrlC(void);
 
 static uint8_t last_command_arrowed = 0;
 static volatile uint8_t ctrl_c_requested = 0;
+// Small wrappers to adapt void exception triggers to builtin(int)(void)
+static int divzero_cmd(void)
+{
+    _divzero();
+    return 0;
+}
+
+static int invop_cmd(void)
+{
+    _invalidopcode();
+    return 0;
+}
+
 
 typedef struct
 {
     char *name;
-    int (*function)(void);
+    uint8_t isProcess;           // 0 = builtin (run inline), 1 = process (createProcess)
+    int (*builtin)(void);        // used when isProcess == 0
+    void (*entry)(void *);       // used when isProcess == 1
     char *description;
 } Command;
 
 /* All available commands. Sorted alphabetically by their name */
 Command commands[] = {
-    {.name = "block", .function = (int (*)(void))(unsigned long long)block, .description = "Toggles a process between BLOCKED and READY"},
-    {.name = "clear", .function = (int (*)(void))(unsigned long long)clear, .description = "Clears the screen"},
-    {.name = "divzero", .function = (int (*)(void))(unsigned long long)_divzero, .description = "Generates a division by zero exception"},
-    {.name = "echo", .function = (int (*)(void))(unsigned long long)echo, .description = "Prints the input string"},
-    {.name = "exit", .function = (int (*)(void))(unsigned long long)exit, .description = "Command exits w/ the provided exit code or 0"},
-    {.name = "font", .function = (int (*)(void))(unsigned long long)font, .description = "Increases or decreases the font size.\n\t\t\t\tUse:\n\t\t\t\t\t  + font increase\n\t\t\t\t\t  + font decrease"},
-    {.name = "help", .function = (int (*)(void))(unsigned long long)help, .description = "Prints the available commands"},
-    {.name = "history", .function = (int (*)(void))(unsigned long long)history, .description = "Prints the command history"},
-    {.name = "invop", .function = (int (*)(void))(unsigned long long)_invalidopcode, .description = "Generates an invalid Opcode exception"},
-    {.name = "kill", .function = (int (*)(void))(unsigned long long)killcmd, .description = "Kills a process by PID"},
-    {.name = "man", .function = (int (*)(void))(unsigned long long)man, .description = "Prints the description of the provided command"},
-    {.name = "mem", .function = (int (*)(void))(unsigned long long)memcmd, .description = "Displays kernel memory usage"},
-    {.name = "nice", .function = (int (*)(void))(unsigned long long)nice, .description = "Changes a process priority"},
-    {.name = "ps", .function = (int (*)(void))(unsigned long long)ps, .description = "Prints the process list"},
-    {.name = "regs", .function = (int (*)(void))(unsigned long long)regs, .description = "Prints the register snapshot, if any"},
-    {.name = "test_mm", .function = (int (*)(void))(unsigned long long)test_mm_command, .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
-    {.name = "time", .function = (int (*)(void))(unsigned long long)time, .description = "Prints the current time"},
-    {.name = "sleep2", .function = (int (*)(void))(unsigned long long)sleep2, .description = "Runs a foreground process that sleeps 2 seconds"},
+    {.name = "block",   .isProcess = 0, .builtin = block,      .entry = 0,             .description = "Toggles a process between BLOCKED and READY"},
+    {.name = "clear",   .isProcess = 0, .builtin = clear,      .entry = 0,             .description = "Clears the screen"},
+    {.name = "divzero", .isProcess = 0, .builtin = divzero_cmd, .entry = 0,             .description = "Generates a division by zero exception"},
+    {.name = "echo",    .isProcess = 0, .builtin = echo,       .entry = 0,             .description = "Prints the input string"},
+    {.name = "exit",    .isProcess = 0, .builtin = exit,       .entry = 0,             .description = "Command exits w/ the provided exit code or 0"},
+    {.name = "font",    .isProcess = 0, .builtin = font,       .entry = 0,             .description = "Increases or decreases the font size.\n\t\t\t\tUse:\n\t\t\t\t\t  + font increase\n\t\t\t\t\t  + font decrease"},
+    {.name = "help",    .isProcess = 0, .builtin = help,       .entry = 0,             .description = "Prints the available commands"},
+    {.name = "history", .isProcess = 0, .builtin = history,    .entry = 0,             .description = "Prints the command history"},
+    {.name = "invop",   .isProcess = 0, .builtin = invop_cmd,  .entry = 0,             .description = "Generates an invalid Opcode exception"},
+    {.name = "kill",    .isProcess = 0, .builtin = killcmd,    .entry = 0,             .description = "Kills a process by PID"},
+    {.name = "man",     .isProcess = 0, .builtin = man,        .entry = 0,             .description = "Prints the description of the provided command"},
+    {.name = "mem",     .isProcess = 0, .builtin = memcmd,     .entry = 0,             .description = "Displays kernel memory usage"},
+    {.name = "nice",    .isProcess = 0, .builtin = nice,       .entry = 0,             .description = "Changes a process priority"},
+    {.name = "ps",      .isProcess = 1, .builtin = 0,          .entry = ps_entry,      .description = "Prints the process list"},
+    {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
+    {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0,       .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
+    {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
+    // Process-style command example (entry must call sys_exit)
+    {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
+    {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Prints a line 3 times and exits"},
 };
 
 char command_history[HISTORY_SIZE][MAX_BUFFER_SIZE] = {0};
@@ -148,9 +167,32 @@ int main()
         {
             if (strcmp(commands[i].name, command) == 0)
             {
-                int pid = createProcess(commands[i].name, commands[i].function, 0, 0, 0, 0, 0, 0);
+                // ¿Se pidió background con '&' al final?
+                int runInBackground = 0;
+                if (buffer_dim > 0)
+                {
+                    int j = buffer_dim - 1;
+                    while (j >= 0 && (command_history_buffer[j] == ' ' || command_history_buffer[j] == '\t'))
+                        j--;
+                    if (j >= 0 && command_history_buffer[j] == '&')
+                    {
+                        runInBackground = 1;
+                    }
+                }
 
-                // last_command_output = commands[i].function();
+                if (commands[i].isProcess)
+                {
+                    int pid = createProcess(commands[i].name, commands[i].entry, 0, 0, 0, 0, 0, runInBackground ? 0 : 1);
+                    (void)pid;
+                    if (!runInBackground && pid > 0)
+                    {
+                        waitProcess(pid);
+                    }
+                }
+                else
+                {
+                    last_command_output = commands[i].builtin();
+                }
                 strncpy(command_history[command_history_last], command_history_buffer, 255);
                 command_history[command_history_last][buffer_dim] = '\0';
                 INC_MOD(command_history_last, HISTORY_SIZE);
@@ -622,6 +664,7 @@ static void sleep2_sleeper(void *arg)
 {
     (void)arg;
     sleep(2000);
+    putchar('.');
     exitProcess(0);
 }
 
@@ -638,6 +681,25 @@ int sleep2(void)
     waitProcess(pid);
     printf("sleep2: done\n");
     return 0;
+}
+
+// Simple process that prints 3 lines then exits (no sleep syscall used)
+static void print3_entry(void *arg)
+{
+    (void)arg;
+    for (int i = 1; i <= 3; i++)
+    {
+        printf("print3: line %d\n", i);
+    }
+    exitProcess(0);
+}
+
+// ps as a process entry: reuse the existing ps() implementation and exit
+static void ps_entry(void *arg)
+{
+    (void)arg;
+    ps();
+    exitProcess(0);
 }
 
 // Utils de formateo para printear tablas

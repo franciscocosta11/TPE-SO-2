@@ -245,11 +245,15 @@ uint16_t clearBuffer() {
 int8_t getKeyboardCharacter(enum KEYBOARD_OPTIONS ops) {
     keyboard_options = ops | MODIFY_BUFFER;
 
-    while(
+    while (
         to_write == to_read || // always get at least one char from the buffer if empty
         (   (keyboard_options & AWAIT_RETURN_KEY) && // wait for \n or EOF to be entered by the user
             !(buffer[SUB_MOD(to_write, 1, BUFFER_SIZE)] == NEW_LINE_CHAR || buffer[SUB_MOD(to_write, 1, BUFFER_SIZE)] == EOF)
-        )) _hlt();
+        )) {
+        // While waiting for input, yield CPU so background processes can run
+        contextSwitch();
+        _hlt();
+    }
 
     keyboard_options = 0;
     int8_t aux = buffer[to_read];

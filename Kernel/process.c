@@ -115,13 +115,11 @@ void exitCurrentProcess(int exitCode)
         return;
     }
 
-    // si uso stack, lo libero
-    if (currentProcess->stackBase)
-    {
-        freeMemory(currentProcess->stackBase);
-        currentProcess->stackBase = NULL;
-        currentProcess->stackSize = 0;
-    }
+    // Importante: no liberar aquí la pila del proceso actual.
+    // Estamos ejecutando en el contexto (y pila) del proceso saliente
+    // dentro del syscall. Liberar su stack en este punto corrompe la
+    // ejecución antes de conmutar. Dejamos la liberación para otros
+    // caminos (ej. killProcess) o un reaper futuro.
     currentProcess->entry = NULL;
     currentProcess->Arg = NULL;
     currentProcess->state = TERMINATED;
