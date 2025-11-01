@@ -177,6 +177,23 @@ static char *append_uint(char *dst, uint32_t value)
     return dst;
 }
 
+static char *append_uint64(char *dst, uint64_t value)
+{
+    char buffer[20];
+    uint32_t count = 0u;
+
+    do {
+        buffer[count++] = (char)('0' + (value % 10u));
+        value /= 10u;
+    } while (value != 0u && count < (uint32_t)(sizeof buffer));
+
+    while (count > 0u) {
+        *dst++ = buffer[--count];
+    }
+
+    return dst;
+}
+
 static char *append_hex(char *dst, uintptr_t value)
 {
     static const char digits[] = "0123456789ABCDEF";
@@ -353,10 +370,14 @@ char *consultMemory(void)
         return buffer;
     }
 
+    const uint64_t managedPages = (uint64_t)(g_freePages.totalPages - g_firstUsablePFN);
+    const uint64_t totalBytes = managedPages * PAGE_SIZE;
+    const uint64_t freeBytes = (uint64_t)g_freePages.freePages * PAGE_SIZE;
+
     cursor = append_literal(cursor, "total=");
-    cursor = append_uint(cursor, g_freePages.totalPages - g_firstUsablePFN);
+    cursor = append_uint64(cursor, totalBytes);
     cursor = append_literal(cursor, " free=");
-    cursor = append_uint(cursor, g_freePages.freePages);
+    cursor = append_uint64(cursor, freeBytes);
     cursor = append_literal(cursor, " base=");
     cursor = append_hex(cursor, g_managedBase);
     cursor = append_literal(cursor, " end=");

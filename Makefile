@@ -1,23 +1,28 @@
 
-all:  bootloader kernel userland image
+MM_STRATEGY ?= MEMORY_MANAGER_SIMPLE
+
+all: bootloader kernel userland image
 
 bootloader:
-	cd Bootloader; make all
+	$(MAKE) -C Bootloader all
 
 kernel:
-	cd Kernel; make all
+	$(MAKE) -C Kernel MM_STRATEGY=$(MM_STRATEGY) all
 
 userland:
-	cd Userland; make all
+	$(MAKE) -C Userland MM_STRATEGY=$(MM_STRATEGY) all
 
 image: kernel bootloader userland
-	cd Image; make all
+	$(MAKE) -C Image MM_STRATEGY=$(MM_STRATEGY) all
+
+buddy:
+	$(MAKE) MM_STRATEGY=MEMORY_MANAGER_BUDDY all
 
 clean:
-	cd Bootloader; make clean
-	cd Image; make clean
-	cd Kernel; make clean
-	cd Userland; make clean
+	$(MAKE) -C Bootloader clean
+	$(MAKE) -C Image clean
+	$(MAKE) -C Kernel clean
+	$(MAKE) -C Userland clean
 	rm -f *.zip
 
-.PHONY: bootloader image collections kernel userland all clean
+.PHONY: bootloader image collections kernel userland all buddy clean
