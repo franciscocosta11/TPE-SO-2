@@ -65,6 +65,7 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x800000F6: return sys_create_process((char *)registers->rdi, (void (*)(void *)) registers->rsi, (char **) registers->rdx, (uint32_t) registers->rcx, (void *) registers->r8, (uint64_t) registers->r9, (int) registers->r10 ,(uint8_t) registers->r11);
         case 0x800000F7: return sys_wait_process((int32_t)registers->rdi);
 		case 0x800000F8: return sys_get_pid();
+		case 0x800000F9: return sys_unblock_process((int32_t)registers->rdi);
 		default: return 0;
 	}
 }
@@ -208,6 +209,10 @@ int32_t sys_exit(int32_t status) {
 
 int32_t sys_get_pid(void) {
 	return getCurrentPid();
+}
+
+int32_t sys_unblock_process(int32_t pid) {
+	return unblockProcess(pid);
 }
 
 // ==================================================================

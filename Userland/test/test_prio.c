@@ -1,9 +1,10 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <sys.h>
 #include "syscall.h"
 #include "test_util.h"
 
-#define TOTAL_PROCESSES 3
+#define TOTAL_PROCESSES 6
 
 #define LOWEST 0  // TODO: Change as required
 #define MEDIUM 1  // TODO: Change as required
@@ -19,6 +20,13 @@ void zero_to_max() {
   while (value++ != max_value);
 
   printf("PROCESS %d DONE!\n", my_getpid());
+}
+
+// Wrapper que llama a exitProcess al terminar
+void zero_to_max_wrapper(void *arg) {
+  (void)arg;
+  zero_to_max();
+  exitProcess(0);
 }
 
 uint64_t test_prio(uint64_t argc, char *argv[]) {
@@ -71,4 +79,6 @@ uint64_t test_prio(uint64_t argc, char *argv[]) {
 
   for (i = 0; i < TOTAL_PROCESSES; i++)
     my_wait(pids[i]);
+
+  return 0;
 }

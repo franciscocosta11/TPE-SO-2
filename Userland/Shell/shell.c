@@ -48,6 +48,7 @@ int time(void);
 int ps(void);
 int nice(void);
 int test_mm_command(void);
+int test_prio_command(void);
 int sleep2(void);
 static void sleep2_sleeper(void *arg);
 static void print3_entry(void *arg);
@@ -127,6 +128,7 @@ Command commands[] = {
     {.name = "ps",      .isProcess = 1, .builtin = 0,          .entry = ps_entry,      .description = "Prints the process list"},
     {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
     {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0,       .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
+    {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0,   .description = "Tests process priorities. Usage: test_prio <max_iterations>"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
     // Process-style command example (entry must call sys_exit)
     {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
@@ -140,6 +142,7 @@ uint8_t command_history_last = 0;
 static uint64_t last_command_output = 0;
 
 extern uint64_t test_mm(uint64_t argc, char *argv[]);
+extern uint64_t test_prio(uint64_t argc, char *argv[]);
 
 int main()
 {
@@ -393,6 +396,49 @@ int time(void)
     int hour, minute, second;
     getDate(&hour, &minute, &second);
     printf("Current time: %xh %xm %xs\n", hour, minute, second);
+    return 0;
+}
+
+int test_prio_command(void)
+{
+    char *arg = NULL;
+    char *token = NULL;
+
+    while ((token = strtok(NULL, " ")) != NULL)
+    {
+        if (strcmp(token, "&") == 0)
+        {
+            continue;
+        }
+
+        if (arg == NULL)
+        {
+            arg = token;
+            continue;
+        }
+
+        fprintf(FD_STDERR, "test_prio accepts exactly one parameter\n");
+        return 1;
+    }
+
+    if (arg == NULL)
+    {
+        fprintf(FD_STDERR, "Usage: test_prio <max_iterations>\n");
+        return 1;
+    }
+
+    char *argv[2];
+    argv[0] = arg;
+    argv[1] = NULL;
+
+    uint64_t result = test_prio(1, argv);
+
+    if (result != 0)
+    {
+        fprintf(FD_STDERR, "test_prio failed with code %lld\n", (long long)result);
+        return 1;
+    }
+
     return 0;
 }
 

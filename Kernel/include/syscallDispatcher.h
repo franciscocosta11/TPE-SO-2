@@ -80,5 +80,6 @@ int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint3
 int32_t sys_exit(int32_t status);
 int32_t sys_wait_process(int32_t pid);
 int32_t sys_get_pid(void);
+int32_t sys_unblock_process(int32_t pid);
 
 #endif

@@ -123,3 +123,7 @@ void exitProcess(int32_t code) {
 int32_t getPid(void) {
     return sys_get_pid();
 }
+
+int32_t unblockProcess(int32_t pid) {
+    return sys_unblock_process(pid);
+}
