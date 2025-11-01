@@ -8,7 +8,6 @@ static unsigned long ticks = 0;
 
 void timer_handler() {
 	ticks++;
-
 	toggleCursor();
 }
 
@@ -21,9 +20,18 @@ int seconds_elapsed() {
 }
 
 void sleepTicks(uint64_t sleep_t) {
+	if (sleep_t == 0) {
+		return;
+	}
+
 	unsigned long start = ticks;
-	while (ticks < start + sleep_t) _hlt();
-	return;
+	unsigned long target = start + sleep_t;
+
+	// Yield activo: ceder control periódicamente mientras esperamos
+	while (ticks < target) {
+		// Ceder control al scheduler para que otros procesos puedan ejecutarse
+		_hlt();
+	}
 }
 
 void sleep(int seconds) {

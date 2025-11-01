@@ -37,6 +37,7 @@ GLOBAL sys_get_memory_state
 GLOBAL sys_set_process_priority
 GLOBAL sys_create_process
 GLOBAL sys_wait_process
+GLOBAL sys_get_pid
 
 section .text
 
@@ -94,3 +95,4 @@ sys_get_memory_state: sys_int80 0x800000F4
 sys_set_process_priority: sys_int80 0x800000F5
 sys_create_process: sys_int80 0x800000F6
 sys_wait_process:        sys_int80 0x800000F7
+sys_get_pid:             sys_int80 0x800000F8

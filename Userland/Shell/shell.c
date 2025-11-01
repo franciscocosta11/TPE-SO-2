@@ -52,6 +52,7 @@ int sleep2(void);
 static void sleep2_sleeper(void *arg);
 static void print3_entry(void *arg);
 static void ps_entry(void *arg);
+static void loop_entry(void *arg);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -119,6 +120,7 @@ Command commands[] = {
     {.name = "history", .isProcess = 0, .builtin = history,    .entry = 0,             .description = "Prints the command history"},
     {.name = "invop",   .isProcess = 0, .builtin = invop_cmd,  .entry = 0,             .description = "Generates an invalid Opcode exception"},
     {.name = "kill",    .isProcess = 0, .builtin = killcmd,    .entry = 0,             .description = "Kills a process by PID"},
+    {.name = "loop",    .isProcess = 1, .builtin = 0,          .entry = loop_entry,    .description = "Prints PID with greeting every N seconds (default: 1). Usage: loop [seconds]"},
     {.name = "man",     .isProcess = 0, .builtin = man,        .entry = 0,             .description = "Prints the description of the provided command"},
     {.name = "mem",     .isProcess = 0, .builtin = memcmd,     .entry = 0,             .description = "Displays kernel memory usage"},
     {.name = "nice",    .isProcess = 0, .builtin = nice,       .entry = 0,             .description = "Changes a process priority"},
@@ -774,10 +776,39 @@ int regs(void)
     return 0;
 }
 
-int loop(size_t seconds)
+static void loop_entry(void *arg)
 {
-    printf("Hola soy el proceso %d", seconds);
-    return 0;
+    (void)arg;
+    int pid = getPid();
+
+    // Parse seconds from command line if provided, default to 1 second
+    char *secondsArg = strtok(NULL, " ");
+    uint32_t seconds = 1;
+
+    if (secondsArg != NULL)
+    {
+        int parsed = 0;
+        if (parsePid(secondsArg, &parsed) == 0 && parsed > 0)
+        {
+            seconds = (uint32_t)parsed;
+        }
+    }
+
+    uint32_t milliseconds = seconds * 1000;
+
+    while (1)
+    {
+        printf("Hola, soy el proceso %d\n", pid);
+        sleep(milliseconds);
+
+        // Check for Ctrl+C
+        if (ctrlCIsPending())
+        {
+            exitProcess(130);
+        }
+    }
+
+    exitProcess(0);
 }
 
 int nice(void)

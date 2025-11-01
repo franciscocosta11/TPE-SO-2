@@ -22,6 +22,7 @@ EXTERN syscallDispatcher
 EXTERN exceptionDispatcher
 EXTERN getStackBase
 EXTERN schedule
+EXTERN timer_handler
 
 SECTION .text
 
@@ -165,9 +166,11 @@ picSlaveMask:
 	pop rbp
 	ret
 
-; ! 8254 Timer (Timer Tick) --> CHEQUEAR ESTO!!!! 
+; ! 8254 Timer (Timer Tick) --> CHEQUEAR ESTO!!!!
 _irq00Handler:
 	pushState
+
+	call timer_handler ; incrementar ticks y despertar procesos dormidos
 
 	mov rdi, rsp ; le pasa el contexto de la tarea anterior para guardarlo en pcb
 	call schedule ; devuelve puntero al stack del nuevo proceso

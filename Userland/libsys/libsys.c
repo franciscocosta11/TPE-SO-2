@@ -119,3 +119,7 @@ int32_t waitProcess(int32_t pid) {
 void exitProcess(int32_t code) {
     sys_exit(code);
 }
+
+int32_t getPid(void) {
+    return sys_get_pid();
+}
