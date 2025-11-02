@@ -129,4 +129,10 @@ void exitProcess(int32_t code);
 int32_t getPid(void);
 int32_t unblockProcess(int32_t pid);
 
+// IPC / File descriptor helpers
+// Dummy-backed for now (return -1) until kernel implements them
+int32_t close(int32_t fd);
+int32_t pipe(int32_t pipefd[2]);
+int32_t dup2(int32_t oldfd, int32_t newfd);
+
 #endif

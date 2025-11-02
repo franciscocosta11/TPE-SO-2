@@ -20,6 +20,9 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 3: return sys_read(registers->rdi, (signed char *) registers->rsi, registers->rdx);
 		// Note: Register parameters are 64-bit
 		case 4: return sys_write(registers->rdi, (char *) registers->rsi, registers->rdx);
+		case 6: return sys_close((int32_t)registers->rdi);
+		case 42: return sys_pipe((int32_t *)registers->rdi);
+		case 63: return sys_dup2((int32_t)registers->rdi, (int32_t)registers->rsi);
 		
 		case 0x80000000: return sys_start_beep(registers->rdi);
 		case 0x80000001: return sys_stop_beep();
@@ -85,6 +88,22 @@ int32_t sys_read(int32_t fd, signed char * __user_buf, int32_t count) {
 		*(__user_buf + i) = c;
 	}
     return i;
+}
+
+int32_t sys_close(int32_t fd) {
+	(void)fd;
+	return -1;
+}
+
+int32_t sys_pipe(int32_t pipefd[2]) {
+	(void)pipefd;
+	return -1;
+}
+
+int32_t sys_dup2(int32_t oldfd, int32_t newfd) {
+	(void)oldfd;
+	(void)newfd;
+	return -1;
 }
 
 // ==================================================================

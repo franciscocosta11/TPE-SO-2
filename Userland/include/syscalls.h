@@ -8,6 +8,9 @@
 // Linux syscall prototypes
 int32_t sys_write(int64_t fd, const void *buf, int64_t count);
 int32_t sys_read(int64_t fd, void *buf, int64_t count);
+int32_t sys_close(int32_t fd);
+int32_t sys_pipe(int32_t pipefd[2]);
+int32_t sys_dup2(int32_t oldfd, int32_t newfd);
 
 // Custom syscall prototypes
 /* 0x80000000 */
