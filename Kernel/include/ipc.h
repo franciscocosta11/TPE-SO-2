@@ -43,6 +43,7 @@ struct File
     FileOps *ops;
     void *privateData;
     int flags;
+    int refcount;
 };
 
 #endif // IPC_H

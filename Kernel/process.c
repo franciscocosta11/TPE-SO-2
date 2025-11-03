@@ -29,6 +29,11 @@ void initProcessSystem(void)
         processTable[i].waiterPid = -1;
         processTable[i].priority = MIN_PRIORITY;
         processTable[i].ctx = 0;
+        // Inicializar la tabla de descriptores de archivo en NULL
+        for (int j = 0; j < MAX_FD; j++)
+        {
+            processTable[i].fdTable[j] = NULL;
+        }
     }
     availableProcesses = MAX_PROCESSES;
     currentPid = 0;
@@ -65,6 +70,11 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
     p->priority = priority;
     p->name = name;
     p->isForeground = isForeground;
+    // Limpiar la tabla de descriptores del nuevo proceso
+    for (int j = 0; j < MAX_FD; j++)
+    {
+        p->fdTable[j] = NULL;
+    }
 
     size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
     void *stk = allocMemory(sz);

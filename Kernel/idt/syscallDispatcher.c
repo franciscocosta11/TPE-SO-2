@@ -10,6 +10,7 @@
 #include <MemoryManager.h>
 #include <string.h>
 #include <interrupts.h>
+#include <ipc.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
@@ -78,16 +79,37 @@ int32_t syscallDispatcher(Registers * registers) {
 // ==================================================================
 
 int32_t sys_write(int32_t fd, char * __user_buf, int32_t count) {
-    return printToFd(fd, __user_buf, count);
+	if (count < 0) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr != NULL && fd >= 0 && fd < MAX_FD) {
+		File *f = curr->fdTable[fd];
+		if (f != NULL && f->ops != NULL && f->ops->write != NULL) {
+			return f->ops->write(f, (const void *)__user_buf, (size_t)count);
+		}
+	}
+	// Fallback to legacy console behavior to preserve existing userland
+	return printToFd(fd, __user_buf, count);
 }
 
 int32_t sys_read(int32_t fd, signed char * __user_buf, int32_t count) {
-	int32_t i;
-	int8_t c;
-	for(i = 0; i < count && (c = getKeyboardCharacter(AWAIT_RETURN_KEY | SHOW_BUFFER_WHILE_TYPING)) != EOF; i++){
-		*(__user_buf + i) = c;
+	if (count < 0) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr != NULL && fd >= 0 && fd < MAX_FD) {
+		File *f = curr->fdTable[fd];
+		if (f != NULL && f->ops != NULL && f->ops->read != NULL) {
+			return f->ops->read(f, (void *)__user_buf, (size_t)count);
+		}
 	}
-    return i;
+	// Fallback to legacy keyboard read for stdin (fd==0)
+	if (fd == 0) {
+		int32_t i = 0;
+		int8_t c;
+		for (i = 0; i < count && (c = getKeyboardCharacter(AWAIT_RETURN_KEY | SHOW_BUFFER_WHILE_TYPING)) != EOF; i++) {
+			*(__user_buf + i) = c;
+		}
+		return i;
+	}
+	return -1;
 }
 
 int32_t sys_close(int32_t fd) {
