@@ -49,3 +49,22 @@ void * memcpy(void * destination, const void * source, uint64_t length)
 
 	return destination;
 }
+
+int strcmp(const char *s1, const char *s2) {
+    while (*s1 && (*s1 == *s2)) {
+        s1++;
+        s2++;
+    }
+    return *(const unsigned char *)s1 - *(const unsigned char *)s2;
+}
+
+char *strncpy(char *dest, const char *src, uint64_t n) {
+    uint64_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++) {
+        dest[i] = src[i];
+    }
+    for (; i < n; i++) {
+        dest[i] = '\0';
+    }
+    return dest;
+}

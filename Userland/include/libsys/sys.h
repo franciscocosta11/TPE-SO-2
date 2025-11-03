@@ -129,4 +129,17 @@ void exitProcess(int32_t code);
 int32_t getPid(void);
 int32_t unblockProcess(int32_t pid);
 
+// Semaphore functions
+int32_t semCreate(const char *name, uint32_t initialValue);
+int32_t semOpen(const char *name);
+int32_t semClose(int32_t semId);
+int32_t semWait(int32_t semId);
+int32_t semPost(int32_t semId);
+int32_t semGetValue(int32_t semId);
+
+// Semaphore testing functions
+void semEnterCriticalTest(void);
+void semLeaveCriticalTest(void);
+int32_t semGetCriticalCount(void);
+
 #endif

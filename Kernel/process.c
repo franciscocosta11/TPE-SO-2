@@ -400,3 +400,16 @@ Process *getProcessByPid(int pid)
 
     return NULL;
 }
+
+// Bloquea el proceso actual
+void blockCurrentProcess(void)
+{
+    Process *self = getCurrentProcess();
+    if (self == NULL || self->state == TERMINATED)
+    {
+        return;
+    }
+
+    self->state = BLOCKED;
+    contextSwitch();
+}

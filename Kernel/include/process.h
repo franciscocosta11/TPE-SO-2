@@ -116,6 +116,7 @@ int toggleProcessBlock(int pid);
 int setProcessPriority(int pid, int priority);
 int unblockProcess(int pid);
 void waitProcess(int pid);
+void blockCurrentProcess(void);
 
 // ============= HELPERS =============
 

@@ -13,6 +13,8 @@ GLOBAL getRegisterSnapshot
 
 GLOBAL stackInit
 
+GLOBAL _xchg
+
 EXTERN register_snapshot
 EXTERN register_snapshot_taken
 
@@ -166,4 +168,24 @@ stackInit:
     mov rsp, rbp
     pop rbp
 
+    ret
+
+
+; uint8_t _xchg(uint8_t *ptr, uint8_t newValue)
+; Atomic exchange - intercambia el valor en *ptr con newValue
+; Retorna el valor anterior de *ptr
+; rdi = ptr (dirección de memoria)
+; rsi = newValue (nuevo valor)
+_xchg:
+    push rbp
+    mov rbp, rsp
+
+    mov rax, rsi        ; Cargar newValue en rax
+    xchg [rdi], al      ; Intercambio atómico: al <-> [rdi]
+                        ; al ahora contiene el valor anterior
+                        ; [rdi] ahora contiene newValue
+
+    ; rax ya contiene el valor anterior (retorno)
+    mov rsp, rbp
+    pop rbp
     ret

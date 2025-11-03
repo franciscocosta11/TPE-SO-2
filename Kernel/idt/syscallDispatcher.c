@@ -10,11 +10,23 @@
 #include <MemoryManager.h>
 #include <string.h>
 #include <interrupts.h>
+#include <semaphore.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
 
-// @todo Note: Technically.. registers on the stack are modifiable (since its a struct pointer, not struct). 
+// Forward declarations for semaphore syscalls
+int32_t sys_sem_create(const char *name, uint32_t initialValue);
+int32_t sys_sem_open(const char *name);
+int32_t sys_sem_close(int32_t semId);
+int32_t sys_sem_wait(int32_t semId);
+int32_t sys_sem_post(int32_t semId);
+int32_t sys_sem_get_value(int32_t semId);
+void sys_sem_enter_critical_test(void);
+void sys_sem_leave_critical_test(void);
+int32_t sys_sem_get_critical_count(void);
+
+// @todo Note: Technically.. registers on the stack are modifiable (since its a struct pointer, not struct).
 int32_t syscallDispatcher(Registers * registers) {
 	switch(registers->rax){
 		case 3: return sys_read(registers->rdi, (signed char *) registers->rsi, registers->rdx);
@@ -66,6 +78,15 @@ int32_t syscallDispatcher(Registers * registers) {
         case 0x800000F7: return sys_wait_process((int32_t)registers->rdi);
 		case 0x800000F8: return sys_get_pid();
 		case 0x800000F9: return sys_unblock_process((int32_t)registers->rdi);
+		case 0x800000FA: return sys_sem_create((const char *)registers->rdi, (uint32_t)registers->rsi);
+		case 0x800000FB: return sys_sem_open((const char *)registers->rdi);
+		case 0x800000FC: return sys_sem_close((int32_t)registers->rdi);
+		case 0x800000FD: return sys_sem_wait((int32_t)registers->rdi);
+		case 0x800000FE: return sys_sem_post((int32_t)registers->rdi);
+		case 0x800000FF: return sys_sem_get_value((int32_t)registers->rdi);
+		case 0x80000100: sys_sem_enter_critical_test(); return 0;
+		case 0x80000101: sys_sem_leave_critical_test(); return 0;
+		case 0x80000102: return sys_sem_get_critical_count();
 		default: return 0;
 	}
 }
@@ -213,6 +234,46 @@ int32_t sys_get_pid(void) {
 
 int32_t sys_unblock_process(int32_t pid) {
 	return unblockProcess(pid);
+}
+
+// ==================================================================
+// Semaphore system calls
+// ==================================================================
+
+int32_t sys_sem_create(const char *name, uint32_t initialValue) {
+	return semCreate(name, initialValue);
+}
+
+int32_t sys_sem_open(const char *name) {
+	return semOpen(name);
+}
+
+int32_t sys_sem_close(int32_t semId) {
+	return semClose(semId);
+}
+
+int32_t sys_sem_wait(int32_t semId) {
+	return semWait(semId);
+}
+
+int32_t sys_sem_post(int32_t semId) {
+	return semPost(semId);
+}
+
+int32_t sys_sem_get_value(int32_t semId) {
+	return semGetValue(semId);
+}
+
+void sys_sem_enter_critical_test(void) {
+	semEnterCriticalTest();
+}
+
+void sys_sem_leave_critical_test(void) {
+	semLeaveCriticalTest();
+}
+
+int32_t sys_sem_get_critical_count(void) {
+	return semGetCriticalCount();
 }
 
 // ==================================================================

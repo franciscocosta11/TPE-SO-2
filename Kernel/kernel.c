@@ -10,6 +10,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "MemoryManager.h"
+#include "semaphore.h"
 
 // extern uint8_t text;
 // extern uint8_t rodata;
@@ -66,6 +67,8 @@ int main()
 	createMemory((void *)0xF00000, (1 << 20));
 
 	initProcessSystem(); // este init llama al initScheduler
+
+	initSemaphores(); // Inicializar sistema de semáforos
 
 	char *idleArgs[] = {"idle"};
 	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, 0, BACKGROUND);

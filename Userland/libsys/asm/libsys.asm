@@ -39,6 +39,15 @@ GLOBAL sys_create_process
 GLOBAL sys_wait_process
 GLOBAL sys_get_pid
 GLOBAL sys_unblock_process
+GLOBAL sys_sem_create
+GLOBAL sys_sem_open
+GLOBAL sys_sem_close
+GLOBAL sys_sem_wait
+GLOBAL sys_sem_post
+GLOBAL sys_sem_get_value
+GLOBAL sys_sem_enter_critical_test
+GLOBAL sys_sem_leave_critical_test
+GLOBAL sys_sem_get_critical_count
 
 section .text
 
@@ -98,3 +107,12 @@ sys_create_process: sys_int80 0x800000F6
 sys_wait_process:        sys_int80 0x800000F7
 sys_get_pid:             sys_int80 0x800000F8
 sys_unblock_process:     sys_int80 0x800000F9
+sys_sem_create:          sys_int80 0x800000FA
+sys_sem_open:            sys_int80 0x800000FB
+sys_sem_close:           sys_int80 0x800000FC
+sys_sem_wait:            sys_int80 0x800000FD
+sys_sem_post:            sys_int80 0x800000FE
+sys_sem_get_value:       sys_int80 0x800000FF
+sys_sem_enter_critical_test: sys_int80 0x80000100
+sys_sem_leave_critical_test: sys_int80 0x80000101
+sys_sem_get_critical_count:  sys_int80 0x80000102

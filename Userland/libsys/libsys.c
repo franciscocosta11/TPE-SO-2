@@ -127,3 +127,40 @@ int32_t getPid(void) {
 int32_t unblockProcess(int32_t pid) {
     return sys_unblock_process(pid);
 }
+
+// Semaphore functions
+int32_t semCreate(const char *name, uint32_t initialValue) {
+    return sys_sem_create(name, initialValue);
+}
+
+int32_t semOpen(const char *name) {
+    return sys_sem_open(name);
+}
+
+int32_t semClose(int32_t semId) {
+    return sys_sem_close(semId);
+}
+
+int32_t semWait(int32_t semId) {
+    return sys_sem_wait(semId);
+}
+
+int32_t semPost(int32_t semId) {
+    return sys_sem_post(semId);
+}
+
+int32_t semGetValue(int32_t semId) {
+    return sys_sem_get_value(semId);
+}
+
+void semEnterCriticalTest(void) {
+    sys_sem_enter_critical_test();
+}
+
+void semLeaveCriticalTest(void) {
+    sys_sem_leave_critical_test();
+}
+
+int32_t semGetCriticalCount(void) {
+    return sys_sem_get_critical_count();
+}
