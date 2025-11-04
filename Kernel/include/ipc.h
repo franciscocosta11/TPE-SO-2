@@ -46,4 +46,8 @@ struct File
     int refcount;
 };
 
+// Reference counting helpers (camelCase)
+void fileRetain(File *file);
+void fileRelease(File *file);
+
 #endif // IPC_H

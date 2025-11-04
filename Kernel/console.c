@@ -26,6 +26,7 @@ File *createConsoleIn(void)
     f->ops = &consoleOps;
     f->privateData = NULL; // could hold mode if needed
     f->flags = 0;          // 0 = stdin by convention if needed later
+    f->refcount = 1;
     return f;
 }
 
@@ -37,6 +38,7 @@ File *createConsoleOut(void)
     f->ops = &consoleOps;
     f->privateData = NULL;
     f->flags = 1; // stdout tag (optional)
+    f->refcount = 1;
     return f;
 }
 
@@ -48,6 +50,7 @@ File *createConsoleErr(void)
     f->ops = &consoleOps;
     f->privateData = NULL;
     f->flags = 2; // stderr tag (optional)
+    f->refcount = 1;
     return f;
 }
 

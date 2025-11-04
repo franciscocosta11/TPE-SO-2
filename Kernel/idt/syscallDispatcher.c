@@ -81,40 +81,31 @@ int32_t syscallDispatcher(Registers * registers) {
 int32_t sys_write(int32_t fd, char * __user_buf, int32_t count) {
 	if (count < 0) return -1;
 	Process *curr = getCurrentProcess();
-	if (curr != NULL && fd >= 0 && fd < MAX_FD) {
-		File *f = curr->fdTable[fd];
-		if (f != NULL && f->ops != NULL && f->ops->write != NULL) {
-			return f->ops->write(f, (const void *)__user_buf, (size_t)count);
-		}
-	}
-	// Fallback to legacy console behavior to preserve existing userland
-	return printToFd(fd, __user_buf, count);
+	if (curr == NULL || fd < 0 || fd >= MAX_FD) return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL || f->ops == NULL || f->ops->write == NULL) return -1;
+	return f->ops->write(f, (const void *)__user_buf, (size_t)count);
 }
 
 int32_t sys_read(int32_t fd, signed char * __user_buf, int32_t count) {
 	if (count < 0) return -1;
 	Process *curr = getCurrentProcess();
-	if (curr != NULL && fd >= 0 && fd < MAX_FD) {
-		File *f = curr->fdTable[fd];
-		if (f != NULL && f->ops != NULL && f->ops->read != NULL) {
-			return f->ops->read(f, (void *)__user_buf, (size_t)count);
-		}
-	}
-	// Fallback to legacy keyboard read for stdin (fd==0)
-	if (fd == 0) {
-		int32_t i = 0;
-		int8_t c;
-		for (i = 0; i < count && (c = getKeyboardCharacter(AWAIT_RETURN_KEY | SHOW_BUFFER_WHILE_TYPING)) != EOF; i++) {
-			*(__user_buf + i) = c;
-		}
-		return i;
-	}
-	return -1;
+	if (curr == NULL || fd < 0 || fd >= MAX_FD) return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL || f->ops == NULL || f->ops->read == NULL) return -1;
+	return f->ops->read(f, (void *)__user_buf, (size_t)count);
 }
 
 int32_t sys_close(int32_t fd) {
-	(void)fd;
-	return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL || fd < 0 || fd >= MAX_FD)
+		return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL)
+		return -1;
+	curr->fdTable[fd] = NULL;
+	fileRelease(f);
+	return 0;
 }
 
 int32_t sys_pipe(int32_t pipefd[2]) {
@@ -123,9 +114,26 @@ int32_t sys_pipe(int32_t pipefd[2]) {
 }
 
 int32_t sys_dup2(int32_t oldfd, int32_t newfd) {
-	(void)oldfd;
-	(void)newfd;
-	return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL)
+		return -1;
+	if (oldfd < 0 || oldfd >= MAX_FD || newfd < 0 || newfd >= MAX_FD)
+		return -1;
+	File *src = curr->fdTable[oldfd];
+	if (src == NULL)
+		return -1;
+	if (oldfd == newfd)
+		return newfd;
+	// Close target if open
+	if (curr->fdTable[newfd] != NULL)
+	{
+	fileRelease(curr->fdTable[newfd]);
+		curr->fdTable[newfd] = NULL;
+	}
+	// Duplicate
+	fileRetain(src);
+	curr->fdTable[newfd] = src;
+	return newfd;
 }
 
 // ==================================================================
