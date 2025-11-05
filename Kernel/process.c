@@ -351,7 +351,7 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount)
         uint64_t basePointer = 0;
         if (ctx != 0)
         {
-            StackFrame *frame = (StackFrame *)ctx; // ctx es rip
+            StackFrame *frame = (StackFrame *)ctx;
             basePointer = frame->rbp;
         }
         buffer[written].basePointer = basePointer;

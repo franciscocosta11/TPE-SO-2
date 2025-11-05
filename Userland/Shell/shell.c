@@ -61,7 +61,9 @@ static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
 static void printSpaces(int count);
 static int digitsForInt(int value);
+static int digitsForHex(uint64_t value);
 static void printIntColumn(int value, int width);
+static void printHexColumn(uint64_t value, int width);
 static void printStringColumn(const char *value, int width);
 static int parsePid(const char *arg, int *pidOut);
 static void handleCtrlC(enum REGISTERABLE_KEYS scancode);
@@ -880,9 +882,9 @@ int ps(void)
         printSpaces(COLUMN_PADDING);
         printStringColumn(fg, FG_COL_WIDTH);
         printSpaces(COLUMN_PADDING);
-        printIntColumn((int)info->stackPointer, STACK_COL_WIDTH); //! cambiar a hex
+        printHexColumn((uint64_t)info->stackPointer, STACK_COL_WIDTH);
         printSpaces(COLUMN_PADDING);
-        printIntColumn((int)info->basePointer, BASE_COL_WIDTH); //! cambiar a hex
+        printHexColumn((uint64_t)info->basePointer, BASE_COL_WIDTH);
         printf("\n");
     }
 
@@ -1079,6 +1081,24 @@ static int digitsForInt(int value)
     return len;
 }
 
+static int digitsForHex(uint64_t value)
+{
+    int len = 0;
+
+    if (value == 0)
+    {
+        return 1;
+    }
+
+    while (value > 0)
+    {
+        len++;
+        value >>= 4;
+    }
+
+    return len;
+}
+
 static void printIntColumn(int value, int width)
 {
     printf("%d", value);
@@ -1087,6 +1107,32 @@ static void printIntColumn(int value, int width)
     if (len < width)
     {
         printSpaces(width - len);
+    }
+}
+
+static void printHexColumn(uint64_t value, int width)
+{
+    char buffer[2 + 16 + 1];
+    int idx = 0;
+
+    buffer[idx++] = '0';
+    buffer[idx++] = 'x';
+
+    int hexDigits = digitsForHex(value);
+
+    for (int i = hexDigits - 1; i >= 0; i--)
+    {
+        uint8_t nibble = (value >> (i * 4)) & 0xF;
+        buffer[idx++] = (nibble < 10) ? ('0' + nibble) : ('A' + nibble - 10);
+    }
+
+    buffer[idx] = 0;
+
+    printf("%s", buffer);
+
+    if (idx < width)
+    {
+        printSpaces(width - idx);
     }
 }
 
