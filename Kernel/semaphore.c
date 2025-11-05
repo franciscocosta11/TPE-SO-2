@@ -22,6 +22,24 @@ static Semaphore semaphores[MAX_SEMAPHORES];
 static uint8_t initialized = 0;
 static uint8_t semLock = 0;  // Global spinlock for all semaphore operations
 
+static inline uint8_t interruptsEnabled(void) {
+    uint64_t flags;
+    __asm__ volatile("pushfq; pop %0" : "=r"(flags));
+    return (flags & (1ULL << 9)) != 0;
+}
+
+static void acquireSemLock(void) {
+    while (_xchg(&semLock, 1) != 0) {
+        if (interruptsEnabled()) {
+            _hlt();
+        }
+    }
+}
+
+static inline void releaseSemLock(void) {
+    semLock = 0;
+}
+
 // Contador global para verificar exclusión mutua (para testing)
 static volatile int32_t criticalSectionCounter = 0;
 
@@ -155,38 +173,44 @@ int32_t semWait(int32_t semId) {
     }
 
     // Usar xchg como spinlock para proteger la sección crítica
-    while (_xchg(&semLock, 1) != 0) {
-        _hlt();  // Yield mientras esperamos el lock
-    }
+    acquireSemLock();
 
     // Sección crítica protegida
     semaphores[semId].value--;
 
     if (semaphores[semId].value < 0) {
-        // Necesitamos bloquear el proceso actual
-        int32_t currentPid = getCurrentPid();
+            // Necesitamos bloquear el proceso actual
+            Process *self = getCurrentProcess();
+            if (self == NULL || self->pid <= 0) {
+                // No hay proceso actual válido para bloquear
+                semaphores[semId].value++; // revert
+                releaseSemLock();
+                return -4;
+            }
 
-        // Agregar a la lista de bloqueados
-        if (semaphores[semId].blockedCount < MAX_BLOCKED_PROCESSES) {
-            semaphores[semId].blockedPids[semaphores[semId].blockedCount++] = currentPid;
+            int32_t currentPid = self->pid;
 
-            // Liberar el lock antes de bloquear
-            semLock = 0;
+            // Agregar a la lista de bloqueados
+            if (semaphores[semId].blockedCount < MAX_BLOCKED_PROCESSES) {
+                semaphores[semId].blockedPids[semaphores[semId].blockedCount++] = currentPid;
 
-            // Bloquear el proceso actual
-            blockCurrentProcess();
+                // Liberar el lock antes de bloquear
+                releaseSemLock();
 
-            return 0;
-        } else {
+                // Bloquear el proceso actual
+                blockCurrentProcess();
+
+                return 0;
+            } else {
             // No hay espacio para más procesos bloqueados
             semaphores[semId].value++;  // Revertir
-            semLock = 0;
+            releaseSemLock();
             return -3;
         }
     }
 
     // Liberar el lock
-    semLock = 0;
+    releaseSemLock();
     return 0;
 }
 
@@ -201,9 +225,7 @@ int32_t semPost(int32_t semId) {
     }
 
     // Usar xchg como spinlock para proteger la sección crítica
-    while (_xchg(&semLock, 1) != 0) {
-        _hlt();  // Yield mientras esperamos el lock
-    }
+    acquireSemLock();
 
     // Sección crítica protegida
     semaphores[semId].value++;
@@ -219,7 +241,7 @@ int32_t semPost(int32_t semId) {
         semaphores[semId].blockedCount--;
 
         // Liberar el lock antes de desbloquear
-        semLock = 0;
+        releaseSemLock();
 
         // Desbloquear el proceso
         unblockProcess(pidToUnblock);
@@ -228,7 +250,7 @@ int32_t semPost(int32_t semId) {
     }
 
     // Liberar el lock
-    semLock = 0;
+    releaseSemLock();
     return 0;
 }
 

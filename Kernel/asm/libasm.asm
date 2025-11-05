@@ -11,7 +11,7 @@ GLOBAL setSpeaker
 
 GLOBAL getRegisterSnapshot
 
-GLOBAL stackInit
+GLOBAL initStack
 
 GLOBAL _xchg
 
@@ -125,7 +125,7 @@ setSpeaker:
 	ret
 
 
-stackInit:
+initStack:
 
     ;of interest:
     ;rdi -> rsp

@@ -7,6 +7,7 @@
 #include <fonts.h>
 #include <syscallDispatcher.h>
 #include <sound.h>
+#include <keyboard.h>
 #include "process.h"
 #include "scheduler.h"
 #include "MemoryManager.h"
@@ -69,6 +70,7 @@ int main()
 	initProcessSystem(); // este init llama al initScheduler
 
 	initSemaphores(); // Inicializar sistema de semáforos
+	initKeyboardInputSync();
 
 	char *idleArgs[] = {"idle"};
 	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, 0, BACKGROUND);

@@ -28,7 +28,9 @@ int32_t semGetValue(int32_t semId);
 
 // Funciones para testing de exclusión mutua
 void semEnterCriticalTest(void);
+
 void semLeaveCriticalTest(void);
+
 int32_t semGetCriticalCount(void);
 
 #endif // SEMAPHORE_H

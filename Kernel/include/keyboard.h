@@ -116,4 +116,6 @@ uint8_t registerControlKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t reg
 void clearControlKeyFnMapNonKernel(SpecialKeyHandler * map);
 void restoreControlKeyFnMapNonKernel(SpecialKeyHandler * map);
 
+void initKeyboardInputSync(void);
+
 #endif

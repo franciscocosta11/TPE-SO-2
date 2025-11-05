@@ -3,6 +3,7 @@
 #include <interrupts.h>
 #include <cursor.h>
 #include <stddef.h>
+#include <semaphore.h>
 
 #define BUFFER_SIZE 1024
 
@@ -35,6 +36,10 @@ static uint8_t SHIFT_KEY_PRESSED, CAPS_LOCK_KEY_PRESSED, CONTROL_KEY_PRESSED;
 static int8_t buffer[BUFFER_SIZE];
 static uint16_t to_write = 0, to_read = 0;
 uint8_t keyboard_options = 0;
+
+#define KEYBOARD_SEM_NAME "keyboard_input_sem"
+
+static int32_t keyboardSemId = -1;
 
 typedef struct {
     uint8_t registered_from_kernel;
@@ -174,6 +179,27 @@ void clearControlKeyFnMapNonKernel(SpecialKeyHandler * map) {
     }
 }
 
+void initKeyboardInputSync(void) {
+    if (keyboardSemId >= 0) {
+        return;
+    }
+
+    int32_t semId = semCreate(KEYBOARD_SEM_NAME, 0);
+    if (semId < 0) {
+        semId = semOpen(KEYBOARD_SEM_NAME);
+    }
+
+    if (semId >= 0) {
+        keyboardSemId = semId;
+    }
+}
+
+static inline void signalKeyboardInput(void) {
+    if (keyboardSemId >= 0) {
+        semPost(keyboardSemId);
+    }
+}
+
 uint8_t registerSpecialKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel) {
     if (IS_KEYCODE(scancode) && ((registeredFromKernel != 0 || (registeredFromKernel == 0 && KeyFnMap[scancode].fn == NULL)))) {
         KeyFnMap[scancode].fn = fn;
@@ -224,6 +250,7 @@ void addCharToBuffer(int8_t ascii, uint8_t showOutput) {
         INC_MOD(to_write, BUFFER_SIZE);
         if (showOutput)
             putChar(ascii);
+        signalKeyboardInput();
         return ;
     }
 
@@ -245,14 +272,21 @@ uint16_t clearBuffer() {
 int8_t getKeyboardCharacter(enum KEYBOARD_OPTIONS ops) {
     keyboard_options = ops | MODIFY_BUFFER;
 
+    if (keyboardSemId < 0) {
+        initKeyboardInputSync();
+    }
+
     while (
-        to_write == to_read || // always get at least one char from the buffer if empty
-        (   (keyboard_options & AWAIT_RETURN_KEY) && // wait for \n or EOF to be entered by the user
+        to_write == to_read ||
+        (   (keyboard_options & AWAIT_RETURN_KEY) &&
             !(buffer[SUB_MOD(to_write, 1, BUFFER_SIZE)] == NEW_LINE_CHAR || buffer[SUB_MOD(to_write, 1, BUFFER_SIZE)] == EOF)
         )) {
-        // While waiting for input, yield CPU so background processes can run
-        contextSwitch();
-        _hlt();
+        if (keyboardSemId >= 0) {
+            semWait(keyboardSemId);
+        } else {
+            contextSwitch();
+            _hlt();
+        }
     }
 
     keyboard_options = 0;

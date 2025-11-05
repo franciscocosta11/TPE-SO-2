@@ -89,7 +89,7 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
 
     // memset(frame, 0, sizeof(StackFrame));
 
-    uint8_t *readyRsp = stackInit(stackTop, (void *)Entry, Argc, Argv);
+    uint8_t *readyRsp = initStack(stackTop, (void *)Entry, Argc, Argv);
 
     // frame->rip = (uint64_t)&processBootstrap;
     // frame->cs = KERNEL_CS;
