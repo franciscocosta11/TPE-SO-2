@@ -68,6 +68,8 @@ int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint3
 int32_t sys_wait_process(int32_t pid);
 int32_t sys_get_pid(void);
 int32_t sys_unblock_process(int32_t pid);
+uint64_t sys_alloc_memory(uint64_t size);
+int32_t sys_free_memory(void *block);
 
 // Semaphore syscalls
 int32_t sys_sem_create(const char *name, uint32_t initialValue);

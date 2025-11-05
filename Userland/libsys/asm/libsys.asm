@@ -39,6 +39,8 @@ GLOBAL sys_create_process
 GLOBAL sys_wait_process
 GLOBAL sys_get_pid
 GLOBAL sys_unblock_process
+GLOBAL sys_alloc_memory
+GLOBAL sys_free_memory
 GLOBAL sys_sem_create
 GLOBAL sys_sem_open
 GLOBAL sys_sem_close
@@ -116,3 +118,5 @@ sys_sem_get_value:       sys_int80 0x800000FF
 sys_sem_enter_critical_test: sys_int80 0x80000100
 sys_sem_leave_critical_test: sys_int80 0x80000101
 sys_sem_get_critical_count:  sys_int80 0x80000102
+sys_alloc_memory:            sys_int80 0x80000110
+sys_free_memory:             sys_int80 0x80000111

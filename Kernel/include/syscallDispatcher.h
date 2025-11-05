@@ -2,6 +2,7 @@
 #define _SYSCALL_DISPATCHER_H_
 
 #include <stdint.h>
+#include <stddef.h>
 #include <keyboard.h>
 #include <process_info.h>
 #include <string.h>
@@ -25,7 +26,7 @@ typedef struct {
 	int64_t rip;
 } Registers;
 
-int32_t syscallDispatcher(Registers * registers);
+uint64_t syscallDispatcher(Registers * registers);
 
 // Linux syscall prototypes
 int32_t sys_write(int32_t fd, char * __user_buf, int32_t count);
@@ -81,5 +82,7 @@ int32_t sys_exit(int32_t status);
 int32_t sys_wait_process(int32_t pid);
 int32_t sys_get_pid(void);
 int32_t sys_unblock_process(int32_t pid);
+void *sys_alloc_memory(size_t size);
+int32_t sys_free_memory(void *block);
 
 #endif

@@ -27,7 +27,7 @@ void sys_sem_leave_critical_test(void);
 int32_t sys_sem_get_critical_count(void);
 
 // @todo Note: Technically.. registers on the stack are modifiable (since its a struct pointer, not struct).
-int32_t syscallDispatcher(Registers * registers) {
+uint64_t syscallDispatcher(Registers * registers) {
 	switch(registers->rax){
 		case 3: return sys_read(registers->rdi, (signed char *) registers->rsi, registers->rdx);
 		// Note: Register parameters are 64-bit
@@ -87,6 +87,8 @@ int32_t syscallDispatcher(Registers * registers) {
 		case 0x80000100: sys_sem_enter_critical_test(); return 0;
 		case 0x80000101: sys_sem_leave_critical_test(); return 0;
 		case 0x80000102: return sys_sem_get_critical_count();
+		case 0x80000110: return (uint64_t)sys_alloc_memory((size_t)registers->rdi);
+		case 0x80000111: return sys_free_memory((void *)registers->rdi);
 		default: return 0;
 	}
 }
@@ -274,6 +276,21 @@ void sys_sem_leave_critical_test(void) {
 
 int32_t sys_sem_get_critical_count(void) {
 	return semGetCriticalCount();
+}
+
+void *sys_alloc_memory(size_t size) {
+	if (size == 0) {
+		return NULL;
+	}
+	return allocMemory(size);
+}
+
+int32_t sys_free_memory(void *block) {
+	if (block == NULL) {
+		return 0;
+	}
+	freeMemory(block);
+	return 0;
 }
 
 // ==================================================================
