@@ -11,6 +11,7 @@
 #include <string.h>
 #include <interrupts.h>
 #include <ipc.h>
+#include <pipe.h>
 
 extern int64_t register_snapshot[18];
 extern int64_t register_snapshot_taken;
@@ -109,8 +110,32 @@ int32_t sys_close(int32_t fd) {
 }
 
 int32_t sys_pipe(int32_t pipefd[2]) {
-	(void)pipefd;
-	return -1;
+	if (pipefd == NULL) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL) return -1;
+
+	// Buscar dos FDs libres
+	int rfd = -1, wfd = -1;
+	for (int i = 0; i < MAX_FD; i++) {
+		if (curr->fdTable[i] == NULL) {
+			if (rfd == -1) rfd = i;
+			else { wfd = i; break; }
+		}
+	}
+	if (rfd == -1 || wfd == -1) return -1; // no hay espacio
+
+	File *fr = NULL, *fw = NULL;
+	if (createKernelPipe(&fr, &fw) < 0) {
+		return -1;
+	}
+
+	// Instalar en la tabla del proceso actual
+	curr->fdTable[rfd] = fr;
+	curr->fdTable[wfd] = fw;
+
+	pipefd[0] = rfd;
+	pipefd[1] = wfd;
+	return 0;
 }
 
 int32_t sys_dup2(int32_t oldfd, int32_t newfd) {

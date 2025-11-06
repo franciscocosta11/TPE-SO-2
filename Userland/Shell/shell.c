@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <syscalls.h>
 
 #include <sys.h>
 #include <exceptions.h>
@@ -54,6 +55,20 @@ static void sleep2_sleeper(void *arg);
 static void print3_entry(void *arg);
 static void ps_entry(void *arg);
 static void loop_entry(void *arg);
+static void pipe_producer_entry(void *arg);
+static void pipe_consumer_entry(void *arg);
+static int pipe_demo(void);
+static int pipe_eof_cmd(void);
+static int pipe_broken_cmd(void);
+static void pipe_broken_writer_entry(void *arg);
+static int pipe_sync_cmd(void);
+static void pipeSyncWriter(void *arg);
+static void pipeSyncReader(void *arg);
+static int pipe_stress_cmd(void);
+static void pipeStressWriter(void *arg);
+static void pipeStressReader(void *arg);
+static int run_pipeline(const char *leftCmd, const char *rightCmd);
+static void trim(char *s);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -86,6 +101,9 @@ static void test_mm_entry(uint64_t argc, char **argv);
 
 static uint8_t last_command_arrowed = 0;
 static volatile uint8_t ctrl_c_requested = 0;
+// Track foreground processes to allow Ctrl-C to kill them
+static volatile int current_fg_pid = 0;
+static volatile int current_pipeline_pids[2] = {0, 0};
 // Small wrappers to adapt void exception triggers to builtin(int)(void)
 static int divzero_cmd(void)
 {
@@ -133,6 +151,12 @@ Command commands[] = {
     // Process-style command example (entry must call sys_exit)
     {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
     {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Prints a line 3 times and exits"},
+    {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = pipe_consumer_entry, .description = "Echo stdin to stdout until EOF"},
+    {.name = "pipe_demo", .isProcess = 0, .builtin = pipe_demo, .entry = 0,             .description = "Demonstrates a simple pipe between two processes"},
+    {.name = "pipe_eof", .isProcess = 0, .builtin = pipe_eof_cmd, .entry = 0,           .description = "Shows EOF when writer closes"},
+    {.name = "pipe_broken", .isProcess = 0, .builtin = pipe_broken_cmd, .entry = 0,     .description = "Shows broken pipe when no readers"},
+    {.name = "pipe_sync", .isProcess = 0, .builtin = pipe_sync_cmd, .entry = 0,         .description = "Tests pipe blocking/sync: writer blocks when full, reader when empty"},
+    {.name = "pipe_stress", .isProcess = 0, .builtin = pipe_stress_cmd, .entry = 0,     .description = "Stress test with multiple writers/readers. Usage: pipe_stress [numWriters] [numReaders]"},
 };
 
 char command_history[HISTORY_SIZE][MAX_BUFFER_SIZE] = {0};
@@ -184,6 +208,66 @@ int main()
         buffer[buffer_dim] = 0;
 
         char *command = strtok(buffer, " ");
+        // Simple pipeline support: cmd1 | cmd2 (no args for now)
+        // Check raw input for '|'
+        char *pipeSep = NULL;
+        for (int k = 0; k < buffer_dim; k++) {
+            if (command_history_buffer[k] == '|') { pipeSep = &command_history_buffer[k]; break; }
+        }
+        if (pipeSep != NULL) {
+            // Split the original line into left and right parts
+            char left[MAX_BUFFER_SIZE];
+            char right[MAX_BUFFER_SIZE];
+            int len = 0;
+            // copy left
+            for (int k = 0; k < buffer_dim && &command_history_buffer[k] < pipeSep && len+1 < MAX_BUFFER_SIZE; k++) {
+                left[len++] = command_history_buffer[k];
+            }
+            left[len] = '\0';
+            // copy right
+            int rlen = 0;
+            for (int k = (int)(pipeSep - command_history_buffer) + 1; k < buffer_dim && rlen+1 < MAX_BUFFER_SIZE; k++) {
+                right[rlen++] = command_history_buffer[k];
+            }
+            right[rlen] = '\0';
+            trim(left);
+            trim(right);
+
+            // Extract command names (first token of each)
+            char leftName[MAX_BUFFER_SIZE];
+            char rightName[MAX_BUFFER_SIZE];
+            leftName[0] = rightName[0] = '\0';
+            // Parse first token from left
+            int iL = 0, oL = 0;
+            while (left[iL] == ' ' || left[iL] == '\t') iL++;
+            while (left[iL] && left[iL] != ' ' && left[iL] != '\t') {
+                if (oL+1 < MAX_BUFFER_SIZE) leftName[oL++] = left[iL];
+                iL++;
+            }
+            leftName[oL] = '\0';
+            // Parse first token from right
+            int iR = 0, oR = 0;
+            while (right[iR] == ' ' || right[iR] == '\t') iR++;
+            while (right[iR] && right[iR] != ' ' && right[iR] != '\t') {
+                if (oR+1 < MAX_BUFFER_SIZE) rightName[oR++] = right[iR];
+                iR++;
+            }
+            rightName[oR] = '\0';
+
+            if (leftName[0] == '\0' || rightName[0] == '\0') {
+                fprintf(FD_STDERR, "Invalid pipeline. Usage: cmd1 | cmd2\n");
+            } else if (run_pipeline(leftName, rightName) != 0) {
+                // Error already printed by run_pipeline
+            }
+
+            // Record history and continue
+            strncpy(command_history[command_history_last], command_history_buffer, 255);
+            command_history[command_history_last][buffer_dim] = '\0';
+            INC_MOD(command_history_last, HISTORY_SIZE);
+            last_command_arrowed = command_history_last;
+            buffer[0] = buffer_dim = 0;
+            continue;
+        }
         int i = 0;
 
         for (; i < sizeof(commands) / sizeof(Command); i++)
@@ -209,7 +293,9 @@ int main()
                     (void)pid;
                     if (!runInBackground && pid > 0)
                     {
+                        current_fg_pid = pid;
                         waitProcess(pid);
+                        current_fg_pid = 0;
                     }
                 }
                 else
@@ -274,6 +360,21 @@ static void handleCtrlC(enum REGISTERABLE_KEYS scancode)
     buffer[0] = 0;
     command_history_buffer[0] = 0;
     ctrl_c_requested = 1;
+
+    // If a foreground process (or simple pipeline) is running, kill it/them
+    if (current_fg_pid > 0)
+    {
+        killProcess(current_fg_pid);
+        current_fg_pid = 0;
+    }
+    for (int i = 0; i < 2; i++)
+    {
+        if (current_pipeline_pids[i] > 0)
+        {
+            killProcess(current_pipeline_pids[i]);
+            current_pipeline_pids[i] = 0;
+        }
+    }
 }
 
 uint8_t ctrlCIsPending(void)
@@ -842,6 +943,12 @@ static void loop_entry(void *arg)
 
     uint32_t milliseconds = seconds * 1000;
 
+    // When used in a pipeline, we might not have parsed args correctly
+    // so just use a fixed interval
+    if (milliseconds == 0 || milliseconds > 60000) {
+        milliseconds = 2000; // Default to 2 seconds
+    }
+
     while (1)
     {
         printf("Hola, soy el proceso %d\n", pid);
@@ -957,6 +1064,322 @@ static void ps_entry(void *arg)
     exitProcess(0);
 }
 
+// ======================== Pipe demo processes ========================
+
+static void pipe_producer_entry(void *arg)
+{
+    (void)arg;
+    const char *msg = "hello through pipe\nline 2\nline 3\n";
+    sys_write(FD_STDOUT, msg, (int)strlen(msg));
+    exitProcess(0);
+}
+
+static void pipe_consumer_entry(void *arg)
+{
+    (void)arg;
+    char buf[1];  // Read 1 byte at a time for immediate output
+    int n;
+    while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
+    {
+        // Echo to stdout immediately
+        sys_write(FD_STDOUT, buf, n);
+    }
+    // Done (EOF or error). Add a marker newline
+    const char *done = "[consumer done]\n";
+    sys_write(FD_STDOUT, done, (int)strlen(done));
+    exitProcess(0);
+}
+
+static int pipe_demo(void)
+{
+    int fds[2];
+    if (pipe(fds) < 0)
+    {
+        fprintf(FD_STDERR, "pipe_demo: pipe() failed\n");
+        return 1;
+    }
+
+    // Save shell stdin/stdout to high-numbered FDs and prepare producer/consumer inheritance
+    const int savedIn = 10;
+    const int savedOut = 11;
+    close(savedIn);
+    close(savedOut);
+    dup2(FD_STDIN, savedIn);
+    dup2(FD_STDOUT, savedOut);
+
+    // Producer child: stdout -> pipe write end
+    dup2(fds[1], FD_STDOUT);
+    int prodPid = createProcess("prod", pipe_producer_entry, 0, 0, 0, 0, 0, 0);
+    // Restore shell stdout and close our write end copy so only the producer holds it
+    dup2(savedOut, FD_STDOUT);
+    close(fds[1]);
+
+    // Consumer child: stdin <- pipe read end
+    dup2(fds[0], FD_STDIN);
+    int consPid = createProcess("cons", pipe_consumer_entry, 0, 0, 0, 0, 0, 0);
+    // Restore shell stdin and close our read end copy so only the consumer holds it
+    dup2(savedIn, FD_STDIN);
+    close(fds[0]);
+
+    // Cleanup: close saved dupes in shell
+    close(savedIn);
+    close(savedOut);
+
+    // Wait for both children so we see the full output before new prompt
+    if (prodPid > 0) waitProcess(prodPid);
+    if (consPid > 0) waitProcess(consPid);
+    return 0;
+}
+
+// Show EOF: consumer reads from pipe and exits when writer is closed (no writer is created)
+static int pipe_eof_cmd(void)
+{
+    int fds[2];
+    if (pipe(fds) < 0) {
+        fprintf(FD_STDERR, "pipe_eof: pipe() failed\n");
+        return 1;
+    }
+    const int savedIn = 10;
+    close(savedIn);
+    dup2(FD_STDIN, savedIn);
+
+    // Close writer end BEFORE creating consumer so it doesn't inherit a writer
+    close(fds[1]);
+
+    // Hook consumer stdin to pipe read end
+    dup2(fds[0], FD_STDIN);
+    int consPid = createProcess("cons", pipe_consumer_entry, 0, 0, 0, 0, 0, 0);
+    // Restore shell stdin and close our read end copy
+    dup2(savedIn, FD_STDIN);
+    close(fds[0]);
+    close(savedIn);
+
+    // Track foreground pid so Ctrl-C can stop it
+    if (consPid > 0) {
+        current_fg_pid = consPid;
+        waitProcess(consPid);
+        current_fg_pid = 0;
+    }
+    return 0;
+}
+
+// Show broken pipe: writer attempts to write with no readers
+static void pipe_broken_writer_entry(void *arg)
+{
+    (void)arg;
+    const char *msg = "x"; // single byte is enough
+    int rc = sys_write(FD_STDOUT, msg, 1);
+    if (rc < 0) {
+        const char *note = "[broken pipe detected]\n";
+        sys_write(FD_STDERR, note, (int)strlen(note));
+    }
+    exitProcess(0);
+}
+
+static int pipe_broken_cmd(void)
+{
+    int fds[2];
+    if (pipe(fds) < 0) {
+        fprintf(FD_STDERR, "pipe_broken: pipe() failed\n");
+        return 1;
+    }
+    const int savedOut = 11;
+    close(savedOut);
+    dup2(FD_STDOUT, savedOut);
+
+    // Close read end so there are no readers
+    close(fds[0]);
+    // Writer stdout -> pipe write end
+    dup2(fds[1], FD_STDOUT);
+    int pid = createProcess("writer", pipe_broken_writer_entry, 0, 0, 0, 0, 0, 0);
+    // Restore shell stdout and close our write end copy
+    dup2(savedOut, FD_STDOUT);
+    close(fds[1]);
+    close(savedOut);
+
+    if (pid > 0) waitProcess(pid);
+    return 0;
+}
+
+// Minimal pipeline runner for two process commands without arguments
+static int run_pipeline(const char *leftCmd, const char *rightCmd)
+{
+    // Resolve commands
+    int leftIdx = -1, rightIdx = -1;
+    for (int i = 0; i < (int)(sizeof(commands)/sizeof(commands[0])); i++) {
+        if (leftIdx == -1 && strcmp(commands[i].name, leftCmd) == 0) leftIdx = i;
+        if (rightIdx == -1 && strcmp(commands[i].name, rightCmd) == 0) rightIdx = i;
+        if (leftIdx != -1 && rightIdx != -1) break;
+    }
+    if (leftIdx == -1) {
+        fprintf(FD_STDERR, "Command not found: %s\n", leftCmd);
+        return 1;
+    }
+    if (rightIdx == -1) {
+        fprintf(FD_STDERR, "Command not found: %s\n", rightCmd);
+        return 1;
+    }
+    if (!commands[leftIdx].isProcess || !commands[rightIdx].isProcess) {
+        fprintf(FD_STDERR, "Only process commands can be piped\n");
+        return 1;
+    }
+
+    int fds[2];
+    if (pipe(fds) < 0) {
+        fprintf(FD_STDERR, "pipeline: pipe() failed\n");
+        return 1;
+    }
+    const int savedIn = 10;
+    const int savedOut = 11;
+    close(savedIn); close(savedOut);
+    dup2(FD_STDIN, savedIn);
+    dup2(FD_STDOUT, savedOut);
+
+    // Left: stdout -> write end
+    dup2(fds[1], FD_STDOUT);
+    int leftPid = createProcess(commands[leftIdx].name, commands[leftIdx].entry, 0, 0, 0, 0, 0, 0);
+    dup2(savedOut, FD_STDOUT);
+    close(fds[1]); // Close write end in shell so only left holds it
+
+    // Right: stdin <- read end
+    dup2(fds[0], FD_STDIN);
+    int rightPid = createProcess(commands[rightIdx].name, commands[rightIdx].entry, 0, 0, 0, 0, 0, 0);
+    dup2(savedIn, FD_STDIN);
+    close(fds[0]); // Close read end in shell so only right holds it
+
+    close(savedIn); close(savedOut);
+    current_pipeline_pids[0] = leftPid;
+    current_pipeline_pids[1] = rightPid;
+    if (leftPid > 0) waitProcess(leftPid);
+    if (rightPid > 0) waitProcess(rightPid);
+    current_pipeline_pids[0] = 0;
+    current_pipeline_pids[1] = 0;
+    return 0;
+}
+
+static void trim(char *s)
+{
+    if (s == NULL) return;
+    int n = (int)strlen(s);
+    int i = 0, j = n - 1;
+    while (i < n && (s[i] == ' ' || s[i] == '\t')) i++;
+    while (j >= i && (s[j] == ' ' || s[j] == '\t')) j--;
+    int k = 0;
+    for (; i <= j; i++) s[k++] = s[i];
+    s[k] = '\0';
+}
+
+// ======================== Pipe synchronization test ========================
+// Simple test: Writer writes MORE than pipe capacity, reader reads slowly.
+// This tests that writer blocks when pipe is full, and reader unblocks writer.
+
+static void pipeSyncWriter(void *arg)
+{
+    (void)arg;
+    
+    // Write 2000 bytes (pipe capacity is 1024, so this MUST block)
+    const char *msg = "W"; // 1 byte
+    int total = 2000;
+    
+    for (int i = 0; i < total; i++)
+    {
+        int w = sys_write(FD_STDOUT, msg, 1);
+        if (w < 0)
+        {
+            exitProcess(1);
+        }
+    }
+    
+    exitProcess(0);
+}
+
+static void pipeSyncReader(void *arg)
+{
+    (void)arg;
+    
+    // Read from pipe until EOF
+    char buf[100];
+    int totalRead = 0;
+    int n;
+    
+    while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
+    {
+        totalRead += n;
+    }
+    
+    // Verify we read the expected amount
+    if (totalRead != 2000)
+    {
+        exitProcess(1);
+    }
+    
+    exitProcess(0);
+}
+
+static int pipe_sync_cmd(void)
+{
+    printf("pipe_sync: Testing pipe blocking/EOF behavior...\n");
+    
+    int fds[2];
+    if (pipe(fds) < 0)
+    {
+        fprintf(FD_STDERR, "pipe_sync: pipe() failed\n");
+        return 1;
+    }
+    
+    // Save stdin/stdout
+    int savedIn = 12;
+    int savedOut = 13;
+    close(savedIn);
+    close(savedOut);
+    dup2(FD_STDIN, savedIn);
+    dup2(FD_STDOUT, savedOut);
+    
+    // Spawn writer first (stdout -> pipe write end)
+    dup2(fds[1], FD_STDOUT);
+    int writerPid = createProcess("writer", pipeSyncWriter, 0, 0, 0, 0, 0, 0);
+    dup2(savedOut, FD_STDOUT);
+    close(fds[1]); // Close write end in shell so only writer holds it
+    
+    // Spawn reader (stdin <- pipe read end)
+    dup2(fds[0], FD_STDIN);
+    int readerPid = createProcess("reader", pipeSyncReader, 0, 0, 0, 0, 0, 0);
+    dup2(savedIn, FD_STDIN);
+    close(fds[0]); // Close read end in shell so only reader holds it
+    
+    // Cleanup saved FDs
+    close(savedIn);
+    close(savedOut);
+    
+    if (writerPid <= 0 || readerPid <= 0)
+    {
+        fprintf(FD_STDERR, "pipe_sync: failed to spawn processes\n");
+        return 1;
+    }
+    
+    // Track writer as foreground for Ctrl-C
+    current_fg_pid = writerPid;
+    
+    // Wait for both
+    int writerStatus = 0;
+    int readerStatus = 0;
+    if (writerPid > 0) writerStatus = waitProcess(writerPid);
+    if (readerPid > 0) readerStatus = waitProcess(readerPid);
+    
+    current_fg_pid = 0;
+    
+    if (writerStatus == 0 && readerStatus == 0)
+    {
+        printf("pipe_sync: OK - Writer sent 2000 bytes, reader received all and detected EOF\n");
+    }
+    else
+    {
+        printf("pipe_sync: FAILED\n");
+    }
+    
+    return 0;
+}
+
 // Utils de formateo para printear tablas
 
 static void printSpaces(int count)
@@ -1054,5 +1477,179 @@ static int parsePid(const char *arg, int *pidOut)
     }
 
     *pidOut = sign * value;
+    return 0;
+}
+
+// ======================== Pipe stress test ========================
+// Multiple writers and readers to stress the pipe implementation
+
+static void pipeStressWriter(void *arg)
+{
+    (void)arg;
+    int myPid = getPid();
+    
+    // CRITICAL: Close ALL FDs except stdout (which should be the pipe write end)
+    // We inherited many FDs from shell, we only want to keep FD 1 (stdout)
+    for (int fd = 0; fd < 20; fd++) {
+        if (fd != FD_STDOUT && fd != FD_STDERR) {
+            close(fd);
+        }
+    }
+    
+    // Write 1000 bytes to the pipe
+    const char *msg = "X";
+    int total = 1000;
+    
+    for (int i = 0; i < total; i++)
+    {
+        int w = sys_write(FD_STDOUT, msg, 1);
+        if (w < 0)
+        {
+            fprintf(FD_STDERR, "Writer %d: write failed\n", myPid);
+            exitProcess(1);
+        }
+        
+        // Report progress every 250 bytes
+        if ((i + 1) % 250 == 0)
+        {
+            fprintf(FD_STDERR, "Writer %d: %d bytes written\n", myPid, i + 1);
+        }
+    }
+    
+    fprintf(FD_STDERR, "Writer %d: finished (%d bytes)\n", myPid, total);
+    exitProcess(0);
+}
+
+static void pipeStressReader(void *arg)
+{
+    (void)arg;
+    int myPid = getPid();
+    
+    // CRITICAL: Close ALL FDs except stdin (which should be the pipe read end) and stderr
+    // We inherited many FDs from shell, we only want to keep FD 0 (stdin) and FD 2 (stderr)
+    for (int fd = 1; fd < 20; fd++) {
+        if (fd != FD_STDERR) {
+            close(fd);
+        }
+    }
+    
+    // Read from pipe until EOF
+    char buf[100];
+    int totalRead = 0;
+    int n;
+    
+    while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
+    {
+        totalRead += n;
+        // Add small delay to let writers queue up
+        // sleep(20);
+    }
+    
+    fprintf(FD_STDERR, "Reader %d: EOF detected, read %d bytes total\n", myPid, totalRead);
+    exitProcess(0);
+}
+
+static int pipe_stress_cmd(void)
+{
+    // Parse arguments: numWriters numReaders (default 3 writers, 2 readers)
+    int numWriters = 3;
+    int numReaders = 2;
+    
+    char *arg1 = strtok(NULL, " ");
+    char *arg2 = strtok(NULL, " ");
+    
+    if (arg1 != NULL && strcmp(arg1, "&") != 0)
+    {
+        int val = 0;
+        if (parsePid(arg1, &val) == 0 && val > 0 && val <= 10)
+        {
+            numWriters = val;
+        }
+    }
+    
+    if (arg2 != NULL && strcmp(arg2, "&") != 0)
+    {
+        int val = 0;
+        if (parsePid(arg2, &val) == 0 && val > 0 && val <= 10)
+        {
+            numReaders = val;
+        }
+    }
+    
+    printf("pipe_stress: Starting with %d writers and %d readers\n", numWriters, numReaders);
+    
+    int fds[2];
+    if (pipe(fds) < 0)
+    {
+        fprintf(FD_STDERR, "pipe_stress: pipe() failed\n");
+        return 1;
+    }
+    
+    // Save stdin/stdout
+    int savedIn = 12;
+    int savedOut = 13;
+    close(savedIn);
+    close(savedOut);
+    dup2(FD_STDIN, savedIn);
+    dup2(FD_STDOUT, savedOut);
+    
+    // Spawn writers first (stdout -> pipe write end)
+    int writerPids[10];
+    for (int i = 0; i < numWriters; i++)
+    {
+        dup2(fds[1], FD_STDOUT);
+        writerPids[i] = createProcess("writer", pipeStressWriter, 0, 0, 0, 0, 0, 0);
+        dup2(savedOut, FD_STDOUT);
+        
+        if (writerPids[i] <= 0)
+        {
+            fprintf(FD_STDERR, "pipe_stress: failed to spawn writer %d\n", i);
+        }
+    }
+    
+    // CRITICAL: Close write end in shell BEFORE spawning readers
+    // This ensures readers can detect EOF when all writers finish
+    close(fds[1]);
+    
+    // Spawn readers (stdin <- pipe read end)
+    int readerPids[10];
+    for (int i = 0; i < numReaders; i++)
+    {
+        dup2(fds[0], FD_STDIN);
+        readerPids[i] = createProcess("reader", pipeStressReader, 0, 0, 0, 0, 0, 0);
+        dup2(savedIn, FD_STDIN);
+        
+        if (readerPids[i] <= 0)
+        {
+            fprintf(FD_STDERR, "pipe_stress: failed to spawn reader %d\n", i);
+        }
+    }
+    
+    // Close read end in shell
+    close(fds[0]);
+    
+    // Cleanup saved FDs
+    close(savedIn);
+    close(savedOut);
+    
+    // Wait for all writers
+    for (int i = 0; i < numWriters; i++)
+    {
+        if (writerPids[i] > 0)
+        {
+            waitProcess(writerPids[i]);
+        }
+    }
+    
+    // Wait for all readers
+    for (int i = 0; i < numReaders; i++)
+    {
+        if (readerPids[i] > 0)
+        {
+            waitProcess(readerPids[i]);
+        }
+    }
+    
+    printf("pipe_stress: All processes finished\n");
     return 0;
 }
