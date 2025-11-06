@@ -23,8 +23,9 @@ void zero_to_max() {
 }
 
 // Wrapper que llama a exitProcess al terminar
-void zero_to_max_wrapper(void *arg) {
-  (void)arg;
+void zero_to_max_wrapper(uint64_t argc, char **argv) {
+  (void)argc;
+  (void)argv;
   zero_to_max();
   exitProcess(0);
 }
