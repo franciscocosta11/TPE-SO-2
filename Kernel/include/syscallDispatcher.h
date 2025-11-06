@@ -31,6 +31,9 @@ uint64_t syscallDispatcher(Registers * registers);
 // Linux syscall prototypes
 int32_t sys_write(int32_t fd, char * __user_buf, int32_t count);
 int32_t sys_read(int32_t fd, signed char * __user_buf, int32_t count);
+int32_t sys_close(int32_t fd);
+int32_t sys_pipe(int32_t pipefd[2]);
+int32_t sys_dup2(int32_t oldfd, int32_t newfd);
 
 // Custom syscall prototypes
 int32_t sys_start_beep(uint32_t nFrequence);

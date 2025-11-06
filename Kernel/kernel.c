@@ -11,6 +11,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "MemoryManager.h"
+#include "console.h"
 #include "semaphore.h"
 
 // extern uint8_t text;
@@ -77,7 +78,14 @@ int main()
 
 	char *shellArgs[] = {"shell"};
 	void (*shellEntryPoint)(void *) = (void (*)(void *))shellModuleAddress; // no sé si es necesario este casteo
-	createProcess("shell", shellEntryPoint, shellArgs, 1, NULL, 0, 0, FOREGROUND);
+	Process *shellProc = createProcess("shell", shellEntryPoint, shellArgs, 1, NULL, 0, 0, FOREGROUND);
+	if (shellProc != NULL)
+	{
+		// Asignar FDs por defecto de la consola a la shell
+		shellProc->fdTable[0] = createConsoleIn();
+		shellProc->fdTable[1] = createConsoleOut();
+		shellProc->fdTable[2] = createConsoleErr();
+	}
 
 	_sti();
 

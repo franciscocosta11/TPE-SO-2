@@ -29,6 +29,11 @@ void initProcessSystem(void)
         processTable[i].waiterPid = -1;
         processTable[i].priority = MIN_PRIORITY;
         processTable[i].ctx = 0;
+        // Inicializar la tabla de descriptores de archivo en NULL
+        for (int j = 0; j < MAX_FD; j++)
+        {
+            processTable[i].fdTable[j] = NULL;
+        }
     }
     availableProcesses = MAX_PROCESSES;
     currentPid = 0;
@@ -65,6 +70,11 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
     p->priority = priority;
     p->name = name;
     p->isForeground = isForeground;
+    // Limpiar la tabla de descriptores del nuevo proceso
+    for (int j = 0; j < MAX_FD; j++)
+    {
+        p->fdTable[j] = NULL;
+    }
 
     size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
     void *stk = allocMemory(sz);
@@ -77,6 +87,23 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
     }
     p->stackBase = stk;
     p->stackSize = sz;
+
+    // Heredar file descriptors del proceso actual (si existe)
+    {
+        Process *parent = getCurrentProcess();
+        if (parent != NULL)
+        {
+            for (int j = 0; j < MAX_FD; j++)
+            {
+                File *f = parent->fdTable[j];
+                if (f != NULL)
+                {
+                    fileRetain(f);
+                    p->fdTable[j] = f;
+                }
+            }
+        }
+    }
 
     if (availableProcesses > 0)
         availableProcesses--;
@@ -113,6 +140,19 @@ void exitCurrentProcess(int exitCode)
     if (currentProcess == NULL)
     {
         return;
+    }
+
+    // Cerrar FDs abiertos del proceso
+    if (currentProcess != NULL)
+    {
+        for (int j = 0; j < MAX_FD; j++)
+        {
+            if (currentProcess->fdTable[j] != NULL)
+            {
+                fileRelease(currentProcess->fdTable[j]);
+                currentProcess->fdTable[j] = NULL;
+            }
+        }
     }
 
     // Importante: no liberar aquí la pila del proceso actual.
@@ -186,6 +226,16 @@ int killProcess(int pid)
                 freeMemory(victim->stackBase);
                 victim->stackBase = NULL;
                 victim->stackSize = 0;
+            }
+
+            // Cerrar FDs abiertos del proceso víctima
+            for (int j = 0; j < MAX_FD; j++)
+            {
+                if (victim->fdTable[j] != NULL)
+                {
+                    fileRelease(victim->fdTable[j]);
+                    victim->fdTable[j] = NULL;
+                }
             }
 
             victim->entry = NULL;

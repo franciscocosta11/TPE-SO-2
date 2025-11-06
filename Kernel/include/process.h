@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "process_info.h"
+#include "ipc.h"
 
 extern int currentPid; // el primer proceso current va a ser el primero en inicializarse
 extern int availableProcesses;
@@ -19,6 +20,8 @@ extern int availableProcesses;
 #define BACKGROUND false
 // Configuración
 #define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
+
+#define MAX_FD 16
 
 // El orden DEBE COINCIDIR con tu macro pushState en interrupts.asm
 typedef struct
@@ -79,6 +82,7 @@ typedef struct Process
     int waiterPid;
     void (*entry)(void *); // entry point
     char **Arg;             // argumento inicial
+    File *fdTable[MAX_FD];
 } Process;
 
 extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos

@@ -1,5 +1,8 @@
 GLOBAL sys_write
 GLOBAL sys_read
+GLOBAL sys_close
+GLOBAL sys_pipe
+GLOBAL sys_dup2
 
 section .text
 
@@ -16,6 +19,33 @@ sys_read:
     push rbp
     mov rbp, rsp
     mov rax, 0x03
+    int 0x80
+    mov rsp, rbp
+    pop rbp
+    ret
+
+sys_close:
+    push rbp
+    mov rbp, rsp
+    mov rax, 0x06
+    int 0x80
+    mov rsp, rbp
+    pop rbp
+    ret
+
+sys_pipe:
+    push rbp
+    mov rbp, rsp
+    mov rax, 0x2A ; 42
+    int 0x80
+    mov rsp, rbp
+    pop rbp
+    ret
+
+sys_dup2:
+    push rbp
+    mov rbp, rsp
+    mov rax, 0x3F ; 63
     int 0x80
     mov rsp, rbp
     pop rbp

@@ -164,3 +164,19 @@ void semLeaveCriticalTest(void) {
 int32_t semGetCriticalCount(void) {
     return sys_sem_get_critical_count();
 }
+
+// ================================================================
+// IPC / File descriptor helpers (dummy-backed)
+// ================================================================
+
+int32_t close(int32_t fd) {
+    return sys_close(fd);
+}
+
+int32_t pipe(int32_t pipefd[2]) {
+    return sys_pipe(pipefd);
+}
+
+int32_t dup2(int32_t oldfd, int32_t newfd) {
+    return sys_dup2(oldfd, newfd);
+}

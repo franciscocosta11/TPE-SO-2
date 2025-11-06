@@ -10,6 +10,8 @@
 #include <MemoryManager.h>
 #include <string.h>
 #include <interrupts.h>
+#include <ipc.h>
+#include <pipe.h>
 #include <semaphore.h>
 
 extern int64_t register_snapshot[18];
@@ -32,6 +34,9 @@ uint64_t syscallDispatcher(Registers * registers) {
 		case 3: return sys_read(registers->rdi, (signed char *) registers->rsi, registers->rdx);
 		// Note: Register parameters are 64-bit
 		case 4: return sys_write(registers->rdi, (char *) registers->rsi, registers->rdx);
+		case 6: return sys_close((int32_t)registers->rdi);
+		case 42: return sys_pipe((int32_t *)registers->rdi);
+		case 63: return sys_dup2((int32_t)registers->rdi, (int32_t)registers->rsi);
 		
 		case 0x80000000: return sys_start_beep(registers->rdi);
 		case 0x80000001: return sys_stop_beep();
@@ -98,16 +103,85 @@ uint64_t syscallDispatcher(Registers * registers) {
 // ==================================================================
 
 int32_t sys_write(int32_t fd, char * __user_buf, int32_t count) {
-    return printToFd(fd, __user_buf, count);
+	if (count < 0) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL || fd < 0 || fd >= MAX_FD) return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL || f->ops == NULL || f->ops->write == NULL) return -1;
+	return f->ops->write(f, (const void *)__user_buf, (size_t)count);
 }
 
 int32_t sys_read(int32_t fd, signed char * __user_buf, int32_t count) {
-	int32_t i;
-	int8_t c;
-	for(i = 0; i < count && (c = getKeyboardCharacter(AWAIT_RETURN_KEY | SHOW_BUFFER_WHILE_TYPING)) != EOF; i++){
-		*(__user_buf + i) = c;
+	if (count < 0) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL || fd < 0 || fd >= MAX_FD) return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL || f->ops == NULL || f->ops->read == NULL) return -1;
+	return f->ops->read(f, (void *)__user_buf, (size_t)count);
+}
+
+int32_t sys_close(int32_t fd) {
+	Process *curr = getCurrentProcess();
+	if (curr == NULL || fd < 0 || fd >= MAX_FD)
+		return -1;
+	File *f = curr->fdTable[fd];
+	if (f == NULL)
+		return -1;
+	curr->fdTable[fd] = NULL;
+	fileRelease(f);
+	return 0;
+}
+
+int32_t sys_pipe(int32_t pipefd[2]) {
+	if (pipefd == NULL) return -1;
+	Process *curr = getCurrentProcess();
+	if (curr == NULL) return -1;
+
+	// Buscar dos FDs libres
+	int rfd = -1, wfd = -1;
+	for (int i = 0; i < MAX_FD; i++) {
+		if (curr->fdTable[i] == NULL) {
+			if (rfd == -1) rfd = i;
+			else { wfd = i; break; }
+		}
 	}
-    return i;
+	if (rfd == -1 || wfd == -1) return -1; // no hay espacio
+
+	File *fr = NULL, *fw = NULL;
+	if (createKernelPipe(&fr, &fw) < 0) {
+		return -1;
+	}
+
+	// Instalar en la tabla del proceso actual
+	curr->fdTable[rfd] = fr;
+	curr->fdTable[wfd] = fw;
+
+	pipefd[0] = rfd;
+	pipefd[1] = wfd;
+	return 0;
+}
+
+int32_t sys_dup2(int32_t oldfd, int32_t newfd) {
+	Process *curr = getCurrentProcess();
+	if (curr == NULL)
+		return -1;
+	if (oldfd < 0 || oldfd >= MAX_FD || newfd < 0 || newfd >= MAX_FD)
+		return -1;
+	File *src = curr->fdTable[oldfd];
+	if (src == NULL)
+		return -1;
+	if (oldfd == newfd)
+		return newfd;
+	// Close target if open
+	if (curr->fdTable[newfd] != NULL)
+	{
+	fileRelease(curr->fdTable[newfd]);
+		curr->fdTable[newfd] = NULL;
+	}
+	// Duplicate
+	fileRetain(src);
+	curr->fdTable[newfd] = src;
+	return newfd;
 }
 
 // ==================================================================
