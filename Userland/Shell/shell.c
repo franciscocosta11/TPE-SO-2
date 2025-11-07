@@ -11,6 +11,10 @@
 #include "wc.h"
 #include "filter.h"
 #include "echo.h"
+#include "cat.h"
+#include "wc.h"
+#include "filter.h"
+#include "echo.h"
 
 #ifdef ANSI_4_BIT_COLOR_SUPPORT
 #include <ansiColors.h>
@@ -162,6 +166,7 @@ Command commands[] = {
     {.name = "test_process", .isProcess = 1, .builtin = 0, .entry = test_process_entry, .description = "Creates, blocks and kills processes randomly. Usage: test_process <max_processes>"},
     {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
+    {.name = "wc",      .isProcess = 1, .builtin = 0,          .entry = wc_entry, .description = "Count lines from stdin"},
     {.name = "yield",   .isProcess = 0, .builtin = yield_cmd,  .entry = 0,             .description = "Voluntarily yields the CPU"},
     {.name = "wc",      .isProcess = 1, .builtin = 0,          .entry = wc_entry, .description = "Count lines from stdin"},
     // Process-style command example (entry must call sys_exit)
