@@ -7,6 +7,10 @@
 
 #include <sys.h>
 #include <exceptions.h>
+#include "cat.h"
+#include "wc.h"
+#include "filter.h"
+#include "echo.h"
 
 #ifdef ANSI_4_BIT_COLOR_SUPPORT
 #include <ansiColors.h>
@@ -34,7 +38,6 @@ static char buffer[MAX_BUFFER_SIZE];
 static int buffer_dim = 0;
 
 int clear(void);
-int echo(void);
 int exit(void);
 int fontdec(void);
 int font(void);
@@ -133,10 +136,12 @@ typedef struct
 /* All available commands. Sorted alphabetically by their name */
 Command commands[] = {
     {.name = "block",   .isProcess = 0, .builtin = block,      .entry = 0,             .description = "Toggles a process between BLOCKED and READY"},
+    {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = cat_entry, .description = "Echo stdin to stdout until EOF"},
     {.name = "clear",   .isProcess = 0, .builtin = clear,      .entry = 0,             .description = "Clears the screen"},
     {.name = "divzero", .isProcess = 0, .builtin = divzero_cmd, .entry = 0,             .description = "Generates a division by zero exception"},
-    {.name = "echo",    .isProcess = 0, .builtin = echo,       .entry = 0,             .description = "Prints the input string"},
+    {.name = "echo",    .isProcess = 1, .builtin = 0,          .entry = echo_entry,    .description = "Prints arguments to stdout"},
     {.name = "exit",    .isProcess = 0, .builtin = exit,       .entry = 0,             .description = "Command exits w/ the provided exit code or 0"},
+    {.name = "filter",  .isProcess = 1, .builtin = 0,          .entry = filter_entry, .description = "Filter vowels from stdin"},
     {.name = "font",    .isProcess = 0, .builtin = font,       .entry = 0,             .description = "Increases or decreases the font size.\n\t\t\t\tUse:\n\t\t\t\t\t  + font increase\n\t\t\t\t\t  + font decrease"},
     {.name = "help",    .isProcess = 0, .builtin = help,       .entry = 0,             .description = "Prints the available commands"},
     {.name = "history", .isProcess = 0, .builtin = history,    .entry = 0,             .description = "Prints the command history"},
@@ -152,10 +157,10 @@ Command commands[] = {
     {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0,   .description = "Tests process priorities. Usage: test_prio <max_iterations>"},
     {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
+    {.name = "wc",      .isProcess = 1, .builtin = 0,          .entry = wc_entry, .description = "Count lines from stdin"},
     // Process-style command example (entry must call sys_exit)
     {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
     {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Prints a line 3 times and exits"},
-    {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = pipe_consumer_entry, .description = "Echo stdin to stdout until EOF"},
     {.name = "pipe_demo", .isProcess = 0, .builtin = pipe_demo, .entry = 0,             .description = "Demonstrates a simple pipe between two processes"},
     {.name = "pipe_eof", .isProcess = 0, .builtin = pipe_eof_cmd, .entry = 0,           .description = "Shows EOF when writer closes"},
     {.name = "pipe_broken", .isProcess = 0, .builtin = pipe_broken_cmd, .entry = 0,     .description = "Shows broken pipe when no readers"},
@@ -199,6 +204,8 @@ int main()
         if (ctrlCIsPending() && buffer_dim == 0)
         {
             consumeCtrlC();
+            buffer[0] = buffer_dim = 0;
+            continue;  // Skip to next prompt
         }
 
         if (buffer_dim == MAX_BUFFER_SIZE)
@@ -294,7 +301,27 @@ int main()
 
                 if (commands[i].isProcess)
                 {
-                    int pid = createProcess(commands[i].name, commands[i].entry, 0, 0, 0, 0, 0, runInBackground ? 0 : 1);
+                    // Parse arguments for process commands
+                    char *argv[32];  // Max 32 arguments
+                    int argc = 0;
+                    
+                    // First argument is the command name
+                    argv[argc++] = commands[i].name;
+                    
+                    // Parse remaining arguments using strtok
+                    char *token;
+                    while ((token = strtok(NULL, " ")) != NULL && argc < 31)
+                    {
+                        // Skip '&' if it's the last token
+                        if (strcmp(token, "&") == 0)
+                        {
+                            break;
+                        }
+                        argv[argc++] = token;
+                    }
+                    argv[argc] = NULL;  // Null-terminate the array
+                    
+                    int pid = createProcess(commands[i].name, (void (*)(void *))commands[i].entry, argv, argc, 0, 0, 0, runInBackground ? 0 : 1);
                     (void)pid;
                     if (!runInBackground && pid > 0)
                     {
@@ -359,8 +386,7 @@ static void handleCtrlC(enum REGISTERABLE_KEYS scancode)
 {
     (void)scancode;
     clearInputBuffer();
-    fprintf(FD_STDOUT, "^C");
-    fprintf(FD_STDIN, "\n");
+    printf("\n");  // Just print newline to move to next line
     buffer_dim = 0;
     buffer[0] = 0;
     command_history_buffer[0] = 0;
@@ -372,14 +398,15 @@ static void handleCtrlC(enum REGISTERABLE_KEYS scancode)
         killProcess(current_fg_pid);
         current_fg_pid = 0;
     }
-    for (int i = 0; i < 2; i++)
+    
+    // For pipelines, only kill the writer (left process)
+    // This allows the reader (right process) to receive EOF and finish gracefully
+    if (current_pipeline_pids[0] > 0)
     {
-        if (current_pipeline_pids[i] > 0)
-        {
-            killProcess(current_pipeline_pids[i]);
-            current_pipeline_pids[i] = 0;
-        }
+        killProcess(current_pipeline_pids[0]);
+        current_pipeline_pids[0] = 0;
     }
+    // Don't kill the reader - let it finish naturally after EOF
 }
 
 uint8_t ctrlCIsPending(void)
@@ -705,56 +732,6 @@ cleanup:
     exitProcess(exitCode);
 }
 
-int echo(void)
-{
-    for (int i = strlen("echo") + 1; i < buffer_dim; i++)
-    {
-        switch (buffer[i])
-        {
-        case '\\':
-            switch (buffer[i + 1])
-            {
-            case 'n':
-                printf("\n");
-                i++;
-                break;
-            case 'e':
-#ifdef ANSI_4_BIT_COLOR_SUPPORT
-                i++;
-                parseANSI(buffer, &i);
-#else
-                while (buffer[i] != 'm')
-                    i++; // ignores escape code, assumes valid format
-                i++;
-#endif
-                break;
-            case 'r':
-                printf("\r");
-                i++;
-                break;
-            case '\\':
-                i++;
-            default:
-                putchar(buffer[i]);
-                break;
-            }
-            break;
-        case '$':
-            if (buffer[i + 1] == '?')
-            {
-                printf("%d", last_command_output);
-                i++;
-                break;
-            }
-        default:
-            putchar(buffer[i]);
-            break;
-        }
-    }
-    printf("\n");
-    return 0;
-}
-
 int help(void)
 {
     printf("Available commands:\n");
@@ -1011,12 +988,6 @@ static void loop_entry(void *arg)
     {
         printf("Hola, soy el proceso %d\n", pid);
         sleep(milliseconds);
-
-        // Check for Ctrl+C
-        if (ctrlCIsPending())
-        {
-            exitProcess(130);
-        }
     }
 
     exitProcess(0);
@@ -1308,8 +1279,18 @@ static int run_pipeline(const char *leftCmd, const char *rightCmd)
     close(savedIn); close(savedOut);
     current_pipeline_pids[0] = leftPid;
     current_pipeline_pids[1] = rightPid;
-    if (leftPid > 0) waitProcess(leftPid);
-    if (rightPid > 0) waitProcess(rightPid);
+    
+    // Wait for left process (writer)
+    if (leftPid > 0) {
+        waitProcess(leftPid);
+    }
+    
+    // If left was killed by Ctrl+C, it's already cleaned up
+    // Just wait for right process (reader) to finish
+    if (rightPid > 0) {
+        waitProcess(rightPid);
+    }
+    
     current_pipeline_pids[0] = 0;
     current_pipeline_pids[1] = 0;
     return 0;
