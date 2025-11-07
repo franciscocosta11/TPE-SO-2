@@ -160,23 +160,6 @@ static char *append_literal(char *dst, const char *text)
     return dst;
 }
 
-static char *append_uint(char *dst, uint32_t value)
-{
-    char buffer[10];
-    uint32_t count = 0u;
-
-    do {
-        buffer[count++] = (char)('0' + (value % 10u));
-        value /= 10u;
-    } while (value != 0u && count < (uint32_t)(sizeof buffer));
-
-    while (count > 0u) {
-        *dst++ = buffer[--count];
-    }
-
-    return dst;
-}
-
 static char *append_uint64(char *dst, uint64_t value)
 {
     char buffer[20];
