@@ -1,0 +1,68 @@
+make -C Bootloader all
+make[1]: Entering directory '/home/romansalerno/TPE-SO-2/Bootloader'
+cd BMFS; make all
+make[2]: Entering directory '/home/romansalerno/TPE-SO-2/Bootloader/BMFS'
+gcc -ansi -std=c99 -Wall -pedantic -o bmfs.bin bmfs.c
+make[2]: Leaving directory '/home/romansalerno/TPE-SO-2/Bootloader/BMFS'
+cd Pure64; make all
+make[2]: Entering directory '/home/romansalerno/TPE-SO-2/Bootloader/Pure64'
+nasm src/bootsectors/bmfs_mbr.asm -o bmfs_mbr.sys
+nasm src/bootsectors/pxestart.asm -o pxestart.sys
+cd src; nasm pure64.asm -o ../pure64.sys
+make[2]: Leaving directory '/home/romansalerno/TPE-SO-2/Bootloader/Pure64'
+make[1]: Leaving directory '/home/romansalerno/TPE-SO-2/Bootloader'
+make -C Kernel MM_STRATEGY=MEMORY_MANAGER_SIMPLE all
+make[1]: Entering directory '/home/romansalerno/TPE-SO-2/Kernel'
+nasm -felf64 -F dwarf -g loader.asm -o loader.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c MemoryManager.c -o MemoryManager.o
+MemoryManager.c:163:14: warning: ‘append_uint’ defined but not used [-Wunused-function]
+  163 | static char *append_uint(char *dst, uint32_t value)
+      |              ^~~~~~~~~~~
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c buddyMemoryManager.c -o buddyMemoryManager.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c cursor.c -o cursor.o
+x86_64-linux-gnu-gcc -O3 -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -c fonts.c -o fonts.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c kernel.c -o kernel.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c lib.c -o lib.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c moduleLoader.c -o moduleLoader.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c process.c -o process.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c scheduler.c -o scheduler.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c semaphore.c -o semaphore.o
+semaphore.c: In function ‘acquireSemLock’:
+semaphore.c:32:12: warning: implicit declaration of function ‘_xchg’ [-Wimplicit-function-declaration]
+   32 |     while (_xchg(&semLock, 1) != 0) {
+      |            ^~~~~
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c drivers/keyboard.c -o drivers/keyboard.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c drivers/sound.c -o drivers/sound.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c drivers/time.c -o drivers/time.o
+x86_64-linux-gnu-gcc -O3 -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -c drivers/video.c -o drivers/video.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c idt/exceptionDispatcher.c -o idt/exceptionDispatcher.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c idt/idtLoader.c -o idt/idtLoader.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c idt/irqDispatcher.c -o idt/irqDispatcher.o
+x86_64-linux-gnu-gcc -m64 -g -O0 -fno-exceptions -fno-asynchronous-unwind-tables -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc -mno-red-zone -Wall -ffreestanding -nostdlib -fno-common -std=c99 -DMEMORY_MANAGER_STRATEGY=MEMORY_MANAGER_SIMPLE -I./include -I./font_assets -c idt/syscallDispatcher.c -o idt/syscallDispatcher.o
+nasm -felf64 -F dwarf -g asm/interrupts.asm -o asm/interrupts.o
+nasm -felf64 -F dwarf -g asm/libasm.asm -o asm/libasm.o
+x86_64-linux-gnu-ld --warn-common -z max-page-size=0x1000 -T kernel.elf.ld -o kernel.elf loader.o MemoryManager.o buddyMemoryManager.o cursor.o fonts.o kernel.o lib.o moduleLoader.o process.o scheduler.o semaphore.o ./drivers/keyboard.o ./drivers/sound.o ./drivers/time.o ./drivers/video.o ./idt/exceptionDispatcher.o ./idt/idtLoader.o ./idt/irqDispatcher.o ./idt/syscallDispatcher.o asm/interrupts.o asm/libasm.o 
+objcopy -O binary kernel.elf kernel.bin
+make[1]: Leaving directory '/home/romansalerno/TPE-SO-2/Kernel'
+make -C Userland MM_STRATEGY=MEMORY_MANAGER_SIMPLE all
+make[1]: Entering directory '/home/romansalerno/TPE-SO-2/Userland'
+cd libc; make all
+make[2]: Entering directory '/home/romansalerno/TPE-SO-2/Userland/libc'
+x86_64-linux-gnu-gcc -c -m64 -fno-pie -I../include -I../include/libsys -I../include/libc -I../test/include -I../Kernel/include -I../../Kernel/include -DANSI_4_BIT_COLOR_SUPPORT=1 -fno-exceptions -std=c99 -Wall -ffreestanding -nostdlib -fno-common -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc stdio.c
+x86_64-linux-gnu-gcc -c -m64 -fno-pie -I../include -I../include/libsys -I../include/libc -I../test/include -I../Kernel/include -I../../Kernel/include -DANSI_4_BIT_COLOR_SUPPORT=1 -fno-exceptions -std=c99 -Wall -ffreestanding -nostdlib -fno-common -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc stdlib.c
+x86_64-linux-gnu-gcc -c -m64 -fno-pie -I../include -I../include/libsys -I../include/libc -I../test/include -I../Kernel/include -I../../Kernel/include -DANSI_4_BIT_COLOR_SUPPORT=1 -fno-exceptions -std=c99 -Wall -ffreestanding -nostdlib -fno-common -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc string.c
+x86_64-linux-gnu-ar rcs ../libc.a stdio.o stdlib.o string.o asm/stdlib.o
+make[2]: Leaving directory '/home/romansalerno/TPE-SO-2/Userland/libc'
+cd libsys; make all
+make[2]: Entering directory '/home/romansalerno/TPE-SO-2/Userland/libsys'
+x86_64-linux-gnu-gcc -c -m64 -fno-pie -I../include -I../include/libsys -I../include/libc -I../test/include -I../Kernel/include -I../../Kernel/include -DANSI_4_BIT_COLOR_SUPPORT=1 -fno-exceptions -std=c99 -Wall -ffreestanding -nostdlib -fno-common -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc ansiColors.c
+x86_64-linux-gnu-gcc -c -m64 -fno-pie -I../include -I../include/libsys -I../include/libc -I../test/include -I../Kernel/include -I../../Kernel/include -DANSI_4_BIT_COLOR_SUPPORT=1 -fno-exceptions -std=c99 -Wall -ffreestanding -nostdlib -fno-common -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -fno-builtin-malloc -fno-builtin-free -fno-builtin-realloc libsys.c
+x86_64-linux-gnu-ar rcs ../libsys.a ansiColors.o libsys.o asm/exceptions.o asm/libsys.o
+make[2]: Leaving directory '/home/romansalerno/TPE-SO-2/Userland/libsys'
+cd Shell; make
+make[2]: Entering directory '/home/romansalerno/TPE-SO-2/Userland/Shell'
+make[2]: *** No rule to make target '../test/test_no_sync.c', needed by 'shell.bin'.  Stop.
+make[2]: Leaving directory '/home/romansalerno/TPE-SO-2/Userland/Shell'
+make[1]: *** [Makefile:12: shell] Error 2
+make[1]: Leaving directory '/home/romansalerno/TPE-SO-2/Userland'
+make: *** [Makefile:13: userland] Error 2

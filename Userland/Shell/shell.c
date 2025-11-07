@@ -51,7 +51,6 @@ int nice(void);
 int test_mm_command(void);
 int test_prio_command(void);
 int test_sync_command(void);
-int test_no_sync_command(void);
 int sleep2(void);
 static void sleep2_sleeper(void *arg);
 static void print3_entry(void *arg);
@@ -151,8 +150,7 @@ Command commands[] = {
     {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
     {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0,       .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
     {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0,   .description = "Tests process priorities. Usage: test_prio <max_iterations>"},
-    {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores with synchronization. Usage: test_sync <n_processes>"},
-    {.name = "test_no_sync", .isProcess = 0, .builtin = test_no_sync_command, .entry = 0, .description = "Tests without synchronization (race conditions). Usage: test_no_sync <n_processes>"},
+    {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
     // Process-style command example (entry must call sys_exit)
     {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
@@ -174,7 +172,6 @@ static uint64_t last_command_output = 0;
 extern uint64_t test_mm(uint64_t argc, char *argv[]);
 extern uint64_t test_prio(uint64_t argc, char *argv[]);
 extern uint64_t test_sync(uint64_t argc, char *argv[]);
-extern uint64_t test_no_sync(uint64_t argc, char *argv[]);
 
 int main()
 {
@@ -553,7 +550,8 @@ int test_prio_command(void)
 
 int test_sync_command(void)
 {
-    char *arg = NULL;
+    char *arg1 = NULL;
+    char *arg2 = NULL;
     char *token = NULL;
 
     while ((token = strtok(NULL, " ")) != NULL)
@@ -563,74 +561,40 @@ int test_sync_command(void)
             continue;
         }
 
-        if (arg == NULL)
+        if (arg1 == NULL)
         {
-            arg = token;
+            arg1 = token;
             continue;
         }
 
-        fprintf(FD_STDERR, "test_sync accepts exactly one parameter\n");
+        if (arg2 == NULL)
+        {
+            arg2 = token;
+            continue;
+        }
+
+        fprintf(FD_STDERR, "test_sync accepts exactly two parameters\n");
         return 1;
     }
 
-    if (arg == NULL)
+    if (arg1 == NULL || arg2 == NULL)
     {
-        fprintf(FD_STDERR, "Usage: test_sync <n_processes>\n");
+        fprintf(FD_STDERR, "Usage: test_sync <n> <use_sem>\n");
+        fprintf(FD_STDERR, "  n: number of iterations per process\n");
+        fprintf(FD_STDERR, "  use_sem: 0 = no semaphores (race condition), 1 = use semaphores\n");
         return 1;
     }
 
-    char *argv[2];
-    argv[0] = arg;
-    argv[1] = NULL;
+    char *argv[3];
+    argv[0] = arg1;
+    argv[1] = arg2;
+    argv[2] = NULL;
 
-    uint64_t result = test_sync(1, argv);
+    uint64_t result = test_sync(2, argv);
 
     if (result != 0)
     {
         fprintf(FD_STDERR, "test_sync failed with code %lld\n", (long long)result);
-        return 1;
-    }
-
-    return 0;
-}
-
-int test_no_sync_command(void)
-{
-    char *arg = NULL;
-    char *token = NULL;
-
-    while ((token = strtok(NULL, " ")) != NULL)
-    {
-        if (strcmp(token, "&") == 0)
-        {
-            continue;
-        }
-
-        if (arg == NULL)
-        {
-            arg = token;
-            continue;
-        }
-
-        fprintf(FD_STDERR, "test_no_sync accepts exactly one parameter\n");
-        return 1;
-    }
-
-    if (arg == NULL)
-    {
-        fprintf(FD_STDERR, "Usage: test_no_sync <n_processes>\n");
-        return 1;
-    }
-
-    char *argv[2];
-    argv[0] = arg;
-    argv[1] = NULL;
-
-    uint64_t result = test_no_sync(1, argv);
-
-    if (result != 0)
-    {
-        fprintf(FD_STDERR, "test_no_sync failed with code %lld\n", (long long)result);
         return 1;
     }
 
