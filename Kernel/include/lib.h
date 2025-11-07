@@ -22,6 +22,6 @@ uint8_t getHour(void);
 uint8_t * initStack(void * rsp, void * rip, int argc, char ** argv);
 
 // Operación atómica de intercambio (exchange)
-uint8_t f(uint8_t *ptr, uint8_t newValue);
+uint8_t _xchg(uint8_t *ptr, uint8_t newValue);
 
 #endif

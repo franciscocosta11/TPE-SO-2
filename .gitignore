@@ -13,6 +13,7 @@
 *.so
 
 *.elf
+Kernel/kernel.elf
 
 # Bash
 .bash_history

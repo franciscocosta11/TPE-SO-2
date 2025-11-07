@@ -1,86 +1,135 @@
-// #include <stdio.h>
-// #include "syscall.h"
-// #include "test_util.h"
-// #include "process_stubs.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <sys.h>
+#include "test_util.h"
 
-// enum State { RUNNING,
-//              BLOCKED,
-//              KILLED };
+#define PROCESS_SNAPSHOT_CAP 64
 
-// typedef struct P_rq {
-//   int32_t pid;
-//   enum State state;
-// } p_rq;
+static void endless_loop_entry(void *arg) {
+  (void)arg;
+  endless_loop();
+}
 
-// int64_t test_processes(uint64_t argc, char *argv[]) {
-//   uint8_t rq;
-//   uint8_t alive = 0;
-//   uint8_t action;
-//   uint64_t max_processes;
-//   char *argvAux[] = {0};
+typedef enum {
+  TEST_STATE_RUNNING,
+  TEST_STATE_BLOCKED,
+  TEST_STATE_KILLED
+} test_state_t;
 
-//   if (argc != 1)
-//     return -1;
+typedef struct P_rq {
+  int32_t pid;
+  test_state_t state;
+} p_rq;
 
-//   if ((max_processes = satoi(argv[0])) <= 0)
-//     return -1;
+static int process_is_active(int32_t pid) {
+  if (pid <= 0) {
+    return 0;
+  }
 
-//   p_rq p_rqs[max_processes];
+  ProcessInfo snapshot[PROCESS_SNAPSHOT_CAP];
+  int32_t count = getProcesses(snapshot, PROCESS_SNAPSHOT_CAP);
 
-//   while (1) {
+  if (count <= 0) {
+    return 0;
+  }
 
-//     // Create max_processes processes
-//     for (rq = 0; rq < max_processes; rq++) {
-//       p_rqs[rq].pid = my_create_process("endless_loop", 0, argvAux);
+  for (int32_t i = 0; i < count; i++) {
+    if (snapshot[i].pid == pid && snapshot[i].state != TERMINATED) {
+      return 1;
+    }
+  }
 
-//       if (p_rqs[rq].pid == -1) {
-//         printf("test_processes: ERROR creating process\n");
-//         return -1;
-//       } else {
-//         p_rqs[rq].state = RUNNING;
-//         alive++;
-//       }
-//     }
+  return 0;
+}
 
-//     // Randomly kills, blocks or unblocks processes until every one has been killed
-//     while (alive > 0) {
+static void mark_as_killed(p_rq *entry, uint8_t *aliveCounter) {
+  if (entry->state != TEST_STATE_KILLED) {
+    entry->state = TEST_STATE_KILLED;
+    if (*aliveCounter > 0) {
+      (*aliveCounter)--;
+    }
+  }
+}
 
-//       for (rq = 0; rq < max_processes; rq++) {
-//         action = GetUniform(100) % 2;
+int64_t test_processes(uint64_t argc, char *argv[]) {
+  uint8_t rq;
+  uint8_t alive = 0;
+  uint8_t action;
+  uint64_t max_processes;
 
-//         switch (action) {
-//           case 0:
-//             if (p_rqs[rq].state == RUNNING || p_rqs[rq].state == BLOCKED) {
-//               if (my_kill(p_rqs[rq].pid) == -1) {
-//                 printf("test_processes: ERROR killing process\n");
-//                 return -1;
-//               }
-//               p_rqs[rq].state = KILLED;
-//               alive--;
-//             }
-//             break;
+  if (argc != 1)
+    return -1;
 
-//           case 1:
-//             if (p_rqs[rq].state == RUNNING) {
-//               if (my_block(p_rqs[rq].pid) == -1) {
-//                 printf("test_processes: ERROR blocking process\n");
-//                 return -1;
-//               }
-//               p_rqs[rq].state = BLOCKED;
-//             }
-//             break;
-//         }
-//       }
+  if ((max_processes = satoi(argv[0])) <= 0)
+    return -1;
 
-//       // Randomly unblocks processes
-//       for (rq = 0; rq < max_processes; rq++)
-//         if (p_rqs[rq].state == BLOCKED && GetUniform(100) % 2) {
-//           if (my_unblock(p_rqs[rq].pid) == -1) {
-//             printf("test_processes: ERROR unblocking process\n");
-//             return -1;
-//           }
-//           p_rqs[rq].state = RUNNING;
-//         }
-//     }
-//   }
-// }
+  p_rq p_rqs[max_processes];
+
+  while (1) {
+
+    // Create max_processes processes
+    for (rq = 0; rq < max_processes; rq++) {
+      p_rqs[rq].pid = createProcess("endless_loop", endless_loop_entry, 0, 0, 0, 0, 0, 0);
+
+      if (p_rqs[rq].pid <= 0) {
+        printf("test_processes: ERROR creating process\n");
+        return -1;
+      } else {
+        p_rqs[rq].state = TEST_STATE_RUNNING;
+        alive++;
+      }
+    }
+
+    // Randomly kills, blocks or unblocks processes until every one has been killed
+    while (alive > 0) {
+
+      for (rq = 0; rq < max_processes; rq++) {
+        action = GetUniform(100) % 2;
+
+        switch (action) {
+          case 0:
+            if (p_rqs[rq].state == TEST_STATE_RUNNING || p_rqs[rq].state == TEST_STATE_BLOCKED) {
+              if (killProcess(p_rqs[rq].pid) < 0) {
+                if (!process_is_active(p_rqs[rq].pid)) {
+                  mark_as_killed(&p_rqs[rq], &alive);
+                  continue;
+                }
+                printf("test_processes: ERROR killing process\n");
+                return -1;
+              }
+              mark_as_killed(&p_rqs[rq], &alive);
+            }
+            break;
+
+          case 1:
+            if (p_rqs[rq].state == TEST_STATE_RUNNING) {
+              if (toggleBlockProcess(p_rqs[rq].pid) < 0) {
+                if (!process_is_active(p_rqs[rq].pid)) {
+                  mark_as_killed(&p_rqs[rq], &alive);
+                  continue;
+                }
+                printf("test_processes: ERROR blocking process\n");
+                return -1;
+              }
+              p_rqs[rq].state = TEST_STATE_BLOCKED;
+            }
+            break;
+        }
+      }
+
+      // Randomly unblocks processes
+      for (rq = 0; rq < max_processes; rq++)
+        if (p_rqs[rq].state == TEST_STATE_BLOCKED && GetUniform(100) % 2) {
+          if (unblockProcess(p_rqs[rq].pid) < 0) {
+            if (!process_is_active(p_rqs[rq].pid)) {
+              mark_as_killed(&p_rqs[rq], &alive);
+              continue;
+            }
+            printf("test_processes: ERROR unblocking process\n");
+            return -1;
+          }
+          p_rqs[rq].state = TEST_STATE_RUNNING;
+        }
+    }
+  }
+}

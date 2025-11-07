@@ -70,6 +70,7 @@ static void pipeStressWriter(void *arg);
 static void pipeStressReader(void *arg);
 static int run_pipeline(const char *leftCmd, const char *rightCmd);
 static void trim(char *s);
+static void test_process_entry(void *arg);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -150,6 +151,7 @@ Command commands[] = {
     {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
     {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0,       .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
     {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0,   .description = "Tests process priorities. Usage: test_prio <max_iterations>"},
+    {.name = "test_process", .isProcess = 1, .builtin = 0, .entry = test_process_entry, .description = "Creates, blocks and kills processes randomly. Usage: test_process <max_processes>"},
     {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
     // Process-style command example (entry must call sys_exit)
@@ -172,6 +174,7 @@ static uint64_t last_command_output = 0;
 extern uint64_t test_mm(uint64_t argc, char *argv[]);
 extern uint64_t test_prio(uint64_t argc, char *argv[]);
 extern uint64_t test_sync(uint64_t argc, char *argv[]);
+extern int64_t test_processes(uint64_t argc, char *argv[]);
 
 int main()
 {
@@ -703,6 +706,47 @@ cleanup:
     }
 
     exitProcess(exitCode);
+}
+
+static void test_process_entry(void *arg)
+{
+    (void)arg;
+
+    char *maxProcArg = NULL;
+    char *token = NULL;
+
+    while ((token = strtok(NULL, " ")) != NULL)
+    {
+        if (strcmp(token, "&") == 0)
+        {
+            continue;
+        }
+
+        if (maxProcArg == NULL)
+        {
+            maxProcArg = token;
+            continue;
+        }
+
+        fprintf(FD_STDERR, "test_process accepts exactly one parameter\n");
+        exitProcess(1);
+    }
+
+    if (maxProcArg == NULL)
+    {
+        fprintf(FD_STDERR, "Usage: test_process <max_processes>\n");
+        exitProcess(1);
+    }
+
+    char *argv[] = {maxProcArg, NULL};
+    int64_t result = test_processes(1, argv);
+
+    if (result != 0)
+    {
+        fprintf(FD_STDERR, "test_process failed with code %lld\n", (long long)result);
+    }
+
+    exitProcess((int)result);
 }
 
 int echo(void)
