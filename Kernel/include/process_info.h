@@ -14,7 +14,7 @@ typedef enum {
 #define PROCESS_PRIORITY_MIN 0
 #define PROCESS_PRIORITY_MAX 3
 #define PROCESS_IDLE_PID 1
-#define PROCESS_SHELL_PID
+#define PROCESS_SHELL_PID 2
 
 typedef struct {
     int pid;
