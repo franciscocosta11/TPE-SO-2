@@ -9,6 +9,7 @@
 #include "interrupts.h"
 #include "lib.h"
 #include "process_info.h"
+#include "semaphore.h"
 
 int currentPid = 0; // el primer proceso current va a ser el primero en inicializarse
 int availableProcesses = 0;
@@ -142,6 +143,9 @@ void exitCurrentProcess(int exitCode)
         return;
     }
 
+    // Remover el proceso de cualquier cola de espera de semáforos
+    semRemoveProcessFromAllQueues(currentProcess->pid);
+
     // Cerrar FDs abiertos del proceso
     if (currentProcess != NULL)
     {
@@ -195,6 +199,10 @@ int killProcess(int pid)
         if (processTable[i].pid == pid)
         {
             Process *victim = &processTable[i];
+
+            // Remover el proceso de cualquier cola de espera de semáforos
+            // Esto evita deadlocks cuando un proceso es killed mientras espera en un semáforo
+            semRemoveProcessFromAllQueues(pid);
 
             // Si estaba en READY, sacarlo de la ready queue
             if (victim->state == READY)

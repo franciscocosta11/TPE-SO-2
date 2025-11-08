@@ -72,6 +72,9 @@ static int pipe_stress_cmd(void);
 static void pipeStressWriter(void *arg);
 static void pipeStressReader(void *arg);
 static int run_pipeline(const char *leftCmd, const char *rightCmd);
+static int mvar_cmd(void);
+static void mvar_writer_entry(uint64_t argc, char **argv);
+static void mvar_reader_entry(uint64_t argc, char **argv);
 static void trim(char *s);
 static void test_process_entry(void *arg);
 
@@ -105,6 +108,7 @@ static void test_mm_cleanup_slots(void);
 static TestMmSlot *test_mm_acquire_slot(void);
 static TestMmSlot *test_mm_find_slot_by_argv(char **argv);
 static void test_mm_entry(uint64_t argc, char **argv);
+
 
 static uint8_t last_command_arrowed = 0;
 static volatile uint8_t ctrl_c_requested = 0;
@@ -151,6 +155,7 @@ Command commands[] = {
     {.name = "loop",    .isProcess = 1, .builtin = 0,          .entry = loop_entry,    .description = "Prints PID with greeting every N seconds (default: 1). Usage: loop [seconds]"},
     {.name = "man",     .isProcess = 0, .builtin = man,        .entry = 0,             .description = "Prints the description of the provided command"},
     {.name = "mem",     .isProcess = 0, .builtin = memcmd,     .entry = 0,             .description = "Displays kernel memory usage"},
+    {.name = "mvar",    .isProcess = 0, .builtin = mvar_cmd,   .entry = 0,             .description = "Multi-variable synchronization test. Usage: mvar <writers> <readers>"},
     {.name = "nice",    .isProcess = 0, .builtin = nice,       .entry = 0,             .description = "Changes a process priority"},
     {.name = "ps",      .isProcess = 1, .builtin = 0,          .entry = ps_entry,      .description = "Prints the process list"},
     {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
@@ -1828,5 +1833,276 @@ static int pipe_stress_cmd(void)
     }
     
     printf("pipe_stress: All processes finished\n");
+    return 0;
+}
+
+// ============================================================================
+// MVar Implementation - Multiple readers/writers with synchronization
+// ============================================================================
+
+#define MVAR_SEM_MUTEX "/mvar_mutex"
+#define MVAR_SEM_EMPTY "/mvar_empty"
+#define MVAR_SEM_FULL  "/mvar_full"
+#define MVAR_MAX_PROCESSES 10
+#define MVAR_BUSY_WAIT_BASE 100
+#define MVAR_BUSY_WAIT_RAND 200
+
+// ANSI colors for readers
+static const char *mvar_reader_colors[] = {
+    "\e[0;31m",  // Red
+    "\e[0;32m",  // Green
+    "\e[0;33m",  // Yellow
+    "\e[0;34m",  // Blue
+    "\e[0;35m",  // Magenta
+    "\e[0;36m",  // Cyan
+    "\e[0;91m",  // Bright red
+    "\e[0;92m",  // Bright green
+    "\e[0;93m",  // Bright yellow
+    "\e[0;94m",  // Bright blue
+};
+
+// MVar shared state (global variables are shared across all shell processes)
+static volatile char mvar_value = 0;
+static volatile int mvar_filled = 0;
+
+typedef struct {
+    char letter;
+    int writerNum;
+} MvarWriterArg;
+
+typedef struct {
+    int readerNum;
+    const char *color;
+} MvarReaderArg;
+
+// Simple pseudo-random number generator using ticks
+static unsigned int mvar_rand_seed = 0;
+static unsigned int mvar_simple_rand(void) {
+    mvar_rand_seed = mvar_rand_seed * 1103515245 + 12345;
+    return mvar_rand_seed;
+}
+
+static void mvar_busy_wait_random(void) {
+    unsigned int wait_time = MVAR_BUSY_WAIT_BASE + (mvar_simple_rand() % MVAR_BUSY_WAIT_RAND);
+    for (unsigned int i = 0; i < wait_time; i++) {
+        // Busy wait
+        __asm__ volatile("nop");
+    }
+    sleep(10); // yield to allow other processes to run
+}
+
+static void mvar_writer_entry(uint64_t argc, char **argv) {
+    // argv points to writerArgs[i]
+    MvarWriterArg *warg = (MvarWriterArg *)argv;
+    char myLetter = warg->letter;
+
+    // Open semaphores
+    int sem_empty = semOpen(MVAR_SEM_EMPTY);
+    int sem_full = semOpen(MVAR_SEM_FULL);
+
+    if (sem_empty < 0 || sem_full < 0) {
+        sys_exit(1);
+    }
+
+    // Writer loop: wait for empty, write value, signal full
+    while (1) {
+        // Random busy wait to simulate some work
+        mvar_busy_wait_random();
+
+        // Wait until MVar is empty
+        if (semWait(sem_empty) < 0) {
+            break; // Probably killed
+        }
+
+        // Critical section: write value to SHARED global variable
+        mvar_value = myLetter;
+        mvar_filled = 1;
+
+        // Signal that MVar is now full
+        semPost(sem_full);
+    }
+
+    semClose(sem_empty);
+    semClose(sem_full);
+    sys_exit(0);
+}
+
+static void mvar_reader_entry(uint64_t argc, char **argv) {
+    // argv points to readerArgs[i]
+    MvarReaderArg *rarg = (MvarReaderArg *)argv;
+    const char *myColor = rarg->color;
+
+    // Open semaphores
+    int sem_empty = semOpen(MVAR_SEM_EMPTY);
+    int sem_full = semOpen(MVAR_SEM_FULL);
+
+    if (sem_empty < 0 || sem_full < 0) {
+        sys_exit(1);
+    }
+
+    // Reader loop: wait for full, read value, signal empty
+    while (1) {
+        // Random busy wait to simulate some work
+        mvar_busy_wait_random();
+
+        // Wait until MVar is full
+        if (semWait(sem_full) < 0) {
+            break; // Probably killed
+        }
+
+        // Critical section: read and consume value from SHARED global variable
+        char val = mvar_value;
+        mvar_filled = 0;
+
+        // Signal that MVar is now empty
+        semPost(sem_empty);
+
+        // Print with color (outside critical section)
+        printf("%s%c\e[0m", myColor, val);
+    }
+
+    semClose(sem_empty);
+    semClose(sem_full);
+    sys_exit(0);
+}
+
+static int mvar_cmd(void) {
+    int numWriters = 0;
+    int numReaders = 0;
+
+    // Parse arguments
+    if (buffer_dim < 6) { // "mvar X Y" minimum
+        printf("Usage: mvar <num_writers> <num_readers>\n");
+        printf("Example: mvar 2 2\n");
+        return 1;
+    }
+
+    // Skip "mvar " to get to arguments
+    char *args = buffer + 5; // Skip "mvar "
+
+    // Parse num_writers
+    while (*args == ' ') args++;
+    numWriters = 0;
+    while (*args >= '0' && *args <= '9') {
+        numWriters = numWriters * 10 + (*args - '0');
+        args++;
+    }
+
+    // Parse num_readers
+    while (*args == ' ') args++;
+    numReaders = 0;
+    while (*args >= '0' && *args <= '9') {
+        numReaders = numReaders * 10 + (*args - '0');
+        args++;
+    }
+
+    // Validate arguments
+    if (numWriters <= 0 || numReaders <= 0) {
+        printf("mvar: Both writers and readers must be > 0\n");
+        return 1;
+    }
+
+    if (numWriters > MVAR_MAX_PROCESSES || numReaders > MVAR_MAX_PROCESSES) {
+        printf("mvar: Maximum %d processes of each type\n", MVAR_MAX_PROCESSES);
+        return 1;
+    }
+
+    // Initialize random seed with a simple mix of values
+    int h, m, s;
+    getDate(&h, &m, &s);
+    mvar_rand_seed = (unsigned int)(h * 3600 + m * 60 + s + numWriters * 7 + numReaders * 13);
+
+    // Reset MVar global state (shared across all processes)
+    mvar_value = 0;
+    mvar_filled = 0;
+
+    // Create or open semaphores
+    // empty: initially 1 (MVar starts empty, so writers can proceed)
+    // full: initially 0 (MVar has no value, so readers must wait)
+
+    // Try to open first (in case they already exist from previous run)
+    int sem_empty = semOpen(MVAR_SEM_EMPTY);
+    int sem_full = semOpen(MVAR_SEM_FULL);
+
+    // If they don't exist, create them
+    if (sem_empty < 0) {
+        sem_empty = semCreate(MVAR_SEM_EMPTY, 1);
+    }
+    if (sem_full < 0) {
+        sem_full = semCreate(MVAR_SEM_FULL, 0);
+    }
+
+    if (sem_empty < 0 || sem_full < 0) {
+        printf("mvar: Failed to create/open semaphores\n");
+        if (sem_empty >= 0) semClose(sem_empty);
+        if (sem_full >= 0) semClose(sem_full);
+        return 1;
+    }
+
+    // Reset semaphores to their initial values to ensure clean state
+    // This is critical after killing processes from a previous mvar run
+    semReset(sem_empty, 1);  // empty: 1 (MVar starts empty)
+    semReset(sem_full, 0);   // full: 0 (no value yet)
+
+    // Allocate memory for process arguments (must persist)
+    static MvarWriterArg writerArgs[MVAR_MAX_PROCESSES];
+    static MvarReaderArg readerArgs[MVAR_MAX_PROCESSES];
+
+    int writerPids[MVAR_MAX_PROCESSES];
+    int readerPids[MVAR_MAX_PROCESSES];
+
+    // Create writer processes
+    for (int i = 0; i < numWriters; i++) {
+        writerArgs[i].letter = 'A' + i;
+        writerArgs[i].writerNum = i;
+
+        // Create descriptive name: "w_A", "w_B", "w_C", etc.
+        static char writerNames[MVAR_MAX_PROCESSES][8];
+        writerNames[i][0] = 'w';
+        writerNames[i][1] = '_';
+        writerNames[i][2] = 'A' + i;
+        writerNames[i][3] = '\0';
+
+        // Cast function pointer and pass struct pointer as argv
+        writerPids[i] = createProcess(writerNames[i], (void (*)(void *))mvar_writer_entry, (char **)&writerArgs[i], 0, NULL, 0, 0, 0);
+        if (writerPids[i] < 0) {
+            printf("mvar: Failed to create writer %d\n", i);
+        }
+    }
+
+    // Create reader processes
+    for (int i = 0; i < numReaders; i++) {
+        readerArgs[i].readerNum = i;
+        readerArgs[i].color = mvar_reader_colors[i % 10];
+
+        // Create descriptive name: "r_0", "r_1", "r_2", etc.
+        static char readerNames[MVAR_MAX_PROCESSES][8];
+        readerNames[i][0] = 'r';
+        readerNames[i][1] = '_';
+        readerNames[i][2] = '0' + i;
+        readerNames[i][3] = '\0';
+
+        // Cast function pointer and pass struct pointer as argv
+        readerPids[i] = createProcess(readerNames[i], (void (*)(void *))mvar_reader_entry, (char **)&readerArgs[i], 0, NULL, 0, 0, 0);
+        if (readerPids[i] < 0) {
+            printf("mvar: Failed to create reader %d\n", i);
+        }
+    }
+
+    printf("mvar: Created %d writers and %d readers. Use 'ps' to see PIDs.\n", numWriters, numReaders);
+    printf("Writers (w_X where X is the letter): ");
+    for (int i = 0; i < numWriters; i++) {
+        printf("%c ", 'A' + i);
+    }
+    printf("\nReaders (r_N with color): ");
+    for (int i = 0; i < numReaders; i++) {
+        printf("%s%d\e[0m ", readerArgs[i].color, i);
+    }
+    printf("\nUse 'kill <PID>' to stop individual processes.\n");
+    printf("Note: Processes run in background. Use Ctrl+C or kill to stop them.\n\n");
+
+    // DON'T close semaphores here - processes still need them!
+    // They will be cleaned up when all processes exit
+
     return 0;
 }

@@ -24,6 +24,7 @@ int32_t sys_sem_close(int32_t semId);
 int32_t sys_sem_wait(int32_t semId);
 int32_t sys_sem_post(int32_t semId);
 int32_t sys_sem_get_value(int32_t semId);
+int32_t sys_sem_reset(int32_t semId, uint32_t newValue);
 void sys_sem_enter_critical_test(void);
 void sys_sem_leave_critical_test(void);
 int32_t sys_sem_get_critical_count(void);
@@ -92,6 +93,7 @@ uint64_t syscallDispatcher(Registers * registers) {
 		case 0x80000100: sys_sem_enter_critical_test(); return 0;
 		case 0x80000101: sys_sem_leave_critical_test(); return 0;
 		case 0x80000102: return sys_sem_get_critical_count();
+		case 0x80000103: return sys_sem_reset((int32_t)registers->rdi, (uint32_t)registers->rsi);
 		case 0x80000110: return (uint64_t)sys_alloc_memory((size_t)registers->rdi);
 		case 0x80000111: return sys_free_memory((void *)registers->rdi);
 		default: return 0;
@@ -338,6 +340,10 @@ int32_t sys_sem_post(int32_t semId) {
 
 int32_t sys_sem_get_value(int32_t semId) {
 	return semGetValue(semId);
+}
+
+int32_t sys_sem_reset(int32_t semId, uint32_t newValue) {
+	return semReset(semId, newValue);
 }
 
 void sys_sem_enter_critical_test(void) {

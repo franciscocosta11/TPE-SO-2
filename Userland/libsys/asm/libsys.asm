@@ -47,6 +47,7 @@ GLOBAL sys_sem_close
 GLOBAL sys_sem_wait
 GLOBAL sys_sem_post
 GLOBAL sys_sem_get_value
+GLOBAL sys_sem_reset
 GLOBAL sys_sem_enter_critical_test
 GLOBAL sys_sem_leave_critical_test
 GLOBAL sys_sem_get_critical_count
@@ -118,5 +119,6 @@ sys_sem_get_value:       sys_int80 0x800000FF
 sys_sem_enter_critical_test: sys_int80 0x80000100
 sys_sem_leave_critical_test: sys_int80 0x80000101
 sys_sem_get_critical_count:  sys_int80 0x80000102
+sys_sem_reset:               sys_int80 0x80000103
 sys_alloc_memory:            sys_int80 0x80000110
 sys_free_memory:             sys_int80 0x80000111
