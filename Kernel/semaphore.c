@@ -21,6 +21,7 @@ typedef struct {
 static Semaphore semaphores[MAX_SEMAPHORES];
 static uint8_t initialized = 0;
 static uint8_t semLock = 0;  // Global spinlock for all semaphore operations
+static uint32_t semRandSeed = 12345;
 
 static inline uint8_t interruptsEnabled(void) {
     uint64_t flags;
@@ -295,21 +296,46 @@ int32_t semPost(int32_t semId) {
     semaphores[semId].value++;
 
     if (semaphores[semId].value <= 0 && semaphores[semId].blockedCount > 0) {
-        // Hay procesos bloqueados, despertar el primero (FIFO)
-        int32_t pidToUnblock = semaphores[semId].blockedPids[0];
+        uint32_t totalWeight = 0;
+        for (uint32_t i = 0; i < semaphores[semId].blockedCount; i++) {
+            int32_t pid = semaphores[semId].blockedPids[i];
+            Process *p = getProcessByPid(pid);
+            totalWeight += (p != NULL) ? (p->priority + 1) : 1;
+        }
 
-        // Mover todos los demás hacia adelante
-        for (uint32_t i = 0; i < semaphores[semId].blockedCount - 1; i++) {
+        int32_t pidToUnblock = -1;
+        uint32_t selectedIndex = 0;
+
+        if (totalWeight > 0) {
+            semRandSeed = semRandSeed * 1103515245 + 12345;
+            uint32_t randomValue = semRandSeed % totalWeight;
+            uint32_t accumulated = 0;
+
+            for (uint32_t i = 0; i < semaphores[semId].blockedCount; i++) {
+                int32_t pid = semaphores[semId].blockedPids[i];
+                Process *p = getProcessByPid(pid);
+                uint32_t weight = (p != NULL) ? (p->priority + 1) : 1;
+                accumulated += weight;
+                if (randomValue < accumulated) {
+                    pidToUnblock = pid;
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (pidToUnblock < 0) {
+            pidToUnblock = semaphores[semId].blockedPids[0];
+            selectedIndex = 0;
+        }
+
+        for (uint32_t i = selectedIndex; i < semaphores[semId].blockedCount - 1; i++) {
             semaphores[semId].blockedPids[i] = semaphores[semId].blockedPids[i + 1];
         }
         semaphores[semId].blockedCount--;
 
-        // Liberar el lock antes de desbloquear
         releaseSemLock();
-
-        // Desbloquear el proceso
         unblockProcess(pidToUnblock);
-
         return 0;
     }
 
