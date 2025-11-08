@@ -1661,6 +1661,9 @@ static void pipeStressWriter(void *arg)
     (void)arg;
     int myPid = getPid();
     
+    // Seed random with PID for different behavior per process
+    srand(myPid);
+    
     // CRITICAL: Close ALL FDs except stdout (which should be the pipe write end)
     // We inherited many FDs from shell, we only want to keep FD 1 (stdout)
     for (int fd = 0; fd < 20; fd++) {
@@ -1682,6 +1685,12 @@ static void pipeStressWriter(void *arg)
             exitProcess(1);
         }
         
+        // Yield randomly (about 10% of the time)
+        if ((rand() % 10) == 0)
+        {
+            sys_yield();
+        }
+        
         // Report progress every 250 bytes
         if ((i + 1) % 250 == 0)
         {
@@ -1697,6 +1706,9 @@ static void pipeStressReader(void *arg)
 {
     (void)arg;
     int myPid = getPid();
+    
+    // Seed random with PID for different behavior per process
+    srand(myPid);
     
     // CRITICAL: Close ALL FDs except stdin (which should be the pipe read end) and stderr
     // We inherited many FDs from shell, we only want to keep FD 0 (stdin) and FD 2 (stderr)
@@ -1714,8 +1726,12 @@ static void pipeStressReader(void *arg)
     while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
     {
         totalRead += n;
-        // Add small delay to let writers queue up
-        // sleep(20);
+        
+        // Yield randomly (about 10% of the time)
+        if ((rand() % 10) == 0)
+        {
+            sys_yield();
+        }
     }
     
     fprintf(FD_STDERR, "Reader %d: EOF detected, read %d bytes total\n", myPid, totalRead);
