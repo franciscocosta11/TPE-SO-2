@@ -46,6 +46,7 @@ int memcmd(void);
 int killcmd(void);
 int regs(void);
 int time(void);
+int yield_cmd(void);
 int ps(void);
 int nice(void);
 int test_mm_command(void);
@@ -84,9 +85,6 @@ static void printIntColumn(int value, int width);
 static void printHexColumn(uint64_t value, int width);
 static void printStringColumn(const char *value, int width);
 static int parsePid(const char *arg, int *pidOut);
-static void handleCtrlC(enum REGISTERABLE_KEYS scancode);
-uint8_t ctrlCIsPending(void);
-static void consumeCtrlC(void);
 
 #define TEST_MM_MAX_INSTANCES 4
 
@@ -108,10 +106,6 @@ static void test_mm_entry(uint64_t argc, char **argv);
 
 
 static uint8_t last_command_arrowed = 0;
-static volatile uint8_t ctrl_c_requested = 0;
-// Track foreground processes to allow Ctrl-C to kill them
-static volatile int current_fg_pid = 0;
-static volatile int current_pipeline_pids[2] = {0, 0};
 // Small wrappers to adapt void exception triggers to builtin(int)(void)
 static int divzero_cmd(void)
 {
@@ -159,6 +153,7 @@ Command commands[] = {
     {.name = "test_process", .isProcess = 1, .builtin = 0, .entry = test_process_entry, .description = "Creates, blocks and kills processes randomly. Usage: test_process <max_processes>"},
     {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
     {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
+    {.name = "yield",   .isProcess = 0, .builtin = yield_cmd,  .entry = 0,             .description = "Voluntarily yields the CPU"},
     // Process-style command example (entry must call sys_exit)
     {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
     {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Prints a line 3 times and exits"},
@@ -187,7 +182,6 @@ int main()
 
     registerKey(KP_UP_KEY, printPreviousCommand);
     registerKey(KP_DOWN_KEY, printNextCommand);
-    registerControlKey(C_KEY, handleCtrlC);
 
     while (1)
     {
@@ -203,11 +197,6 @@ int main()
 
         buffer[buffer_dim] = 0;
         command_history_buffer[buffer_dim] = 0;
-
-        if (ctrlCIsPending() && buffer_dim == 0)
-        {
-            consumeCtrlC();
-        }
 
         if (buffer_dim == MAX_BUFFER_SIZE)
         {
@@ -306,9 +295,7 @@ int main()
                     (void)pid;
                     if (!runInBackground && pid > 0)
                     {
-                        current_fg_pid = pid;
                         waitProcess(pid);
-                        current_fg_pid = 0;
                     }
                 }
                 else
@@ -361,43 +348,6 @@ static void printNextCommand(enum REGISTERABLE_KEYS scancode)
     {
         fprintf(FD_STDIN, command_history[last_command_arrowed]);
     }
-}
-
-static void handleCtrlC(enum REGISTERABLE_KEYS scancode)
-{
-    (void)scancode;
-    clearInputBuffer();
-    fprintf(FD_STDOUT, "^C");
-    fprintf(FD_STDIN, "\n");
-    buffer_dim = 0;
-    buffer[0] = 0;
-    command_history_buffer[0] = 0;
-    ctrl_c_requested = 1;
-
-    // If a foreground process (or simple pipeline) is running, kill it/them
-    if (current_fg_pid > 0)
-    {
-        killProcess(current_fg_pid);
-        current_fg_pid = 0;
-    }
-    for (int i = 0; i < 2; i++)
-    {
-        if (current_pipeline_pids[i] > 0)
-        {
-            killProcess(current_pipeline_pids[i]);
-            current_pipeline_pids[i] = 0;
-        }
-    }
-}
-
-uint8_t ctrlCIsPending(void)
-{
-    return ctrl_c_requested;
-}
-
-static void consumeCtrlC(void)
-{
-    ctrl_c_requested = 0;
 }
 
 static void test_mm_slot_init(void)
@@ -510,6 +460,16 @@ int time(void)
     int hour, minute, second;
     getDate(&hour, &minute, &second);
     printf("Current time: %xh %xm %xs\n", hour, minute, second);
+    return 0;
+}
+
+int yield_cmd(void)
+{
+    if (yieldProcess() != 0)
+    {
+        perror("Failed to yield CPU\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -696,11 +656,6 @@ static void test_mm_entry(uint64_t argc, char **argv)
             break;
         }
 
-        if (ctrlCIsPending())
-        {
-            exitCode = 130;
-            break;
-        }
     }
 
 cleanup:
@@ -1061,11 +1016,6 @@ static void loop_entry(void *arg)
         printf("Hola, soy el proceso %d\n", pid);
         sleep(milliseconds);
 
-        // Check for Ctrl+C
-        if (ctrlCIsPending())
-        {
-            exitProcess(130);
-        }
     }
 
     exitProcess(0);
@@ -1261,11 +1211,8 @@ static int pipe_eof_cmd(void)
     close(fds[0]);
     close(savedIn);
 
-    // Track foreground pid so Ctrl-C can stop it
     if (consPid > 0) {
-        current_fg_pid = consPid;
         waitProcess(consPid);
-        current_fg_pid = 0;
     }
     return 0;
 }
@@ -1355,12 +1302,8 @@ static int run_pipeline(const char *leftCmd, const char *rightCmd)
     close(fds[0]); // Close read end in shell so only right holds it
 
     close(savedIn); close(savedOut);
-    current_pipeline_pids[0] = leftPid;
-    current_pipeline_pids[1] = rightPid;
     if (leftPid > 0) waitProcess(leftPid);
     if (rightPid > 0) waitProcess(rightPid);
-    current_pipeline_pids[0] = 0;
-    current_pipeline_pids[1] = 0;
     return 0;
 }
 
@@ -1464,16 +1407,11 @@ static int pipe_sync_cmd(void)
         return 1;
     }
     
-    // Track writer as foreground for Ctrl-C
-    current_fg_pid = writerPid;
-    
     // Wait for both
     int writerStatus = 0;
     int readerStatus = 0;
     if (writerPid > 0) writerStatus = waitProcess(writerPid);
     if (readerPid > 0) readerStatus = waitProcess(readerPid);
-    
-    current_fg_pid = 0;
     
     if (writerStatus == 0 && readerStatus == 0)
     {

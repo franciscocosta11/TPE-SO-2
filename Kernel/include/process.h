@@ -15,9 +15,11 @@ extern int availableProcesses;
 #define MIN_PRIORITY PROCESS_PRIORITY_MIN
 #define MAX_PRIORITY PROCESS_PRIORITY_MAX
 #define IDLE_PID PROCESS_IDLE_PID
+#define SHELL_PID PROCESS_SHELL_PID
 
 #define FOREGROUND true
 #define BACKGROUND false
+#define SHELL_PROCESS_NAME "shell"
 // Configuración
 #define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
 
@@ -150,5 +152,8 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
  * @return Puntero al `Process` si existe; NULL si no se encuentra.
  */
 Process *getProcessByPid(int pid);
+
+bool isShellProcess(const Process *process);
+bool processCanHandleCtrlC(const Process *process);
 
 #endif // PROCESS_H

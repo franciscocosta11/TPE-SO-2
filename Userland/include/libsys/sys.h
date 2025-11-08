@@ -128,6 +128,7 @@ int32_t waitProcess(int32_t pid);
 void exitProcess(int32_t code);
 int32_t getPid(void);
 int32_t unblockProcess(int32_t pid);
+int32_t yieldProcess(void);
 
 // IPC / File descriptor helpers
 // Dummy-backed for now (return -1) until kernel implements them

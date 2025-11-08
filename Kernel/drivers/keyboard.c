@@ -4,6 +4,7 @@
 #include <cursor.h>
 #include <stddef.h>
 #include <semaphore.h>
+#include <process.h>
 
 #define BUFFER_SIZE 1024
 
@@ -48,6 +49,7 @@ typedef struct {
 
 static RegisteredKeys KeyFnMap[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
 static RegisteredKeys ControlKeyFnMap[ F12_KEY - ESCAPE_KEY + 1 ] = {0};
+static void handleKernelCtrlC(void);
 
 // QEMU source https://github.com/qemu/qemu/blob/master/pc-bios/keymaps/en-us
 // http://flint.cs.yale.edu/feng/cos/resources/BIOS/Resources/assembly/makecodes.html
@@ -323,6 +325,14 @@ uint8_t keyboardHandler(){
     
     if (! (is_pressed && IS_KEYCODE(scancode)) ) return scancode; // ignore break or unsupported scancodes
 
+    if (CONTROL_KEY_PRESSED && is_pressed && scancode < (sizeof(scancodeMap) / sizeof(scancodeMap[0]))) {
+        int8_t ctrlChar = scancodeMap[scancode][SHIFT_KEY_PRESSED];
+        if (ctrlChar == 'c' || ctrlChar == 'C') {
+            handleKernelCtrlC();
+            return scancode;
+        }
+    }
+
     if (CONTROL_KEY_PRESSED && code >= ESCAPE_KEY && code <= F12_KEY && ControlKeyFnMap[code].fn != NULL) {
         ControlKeyFnMap[code].fn(code);
         return scancode;
@@ -360,4 +370,18 @@ uint8_t keyboardHandler(){
 
     return scancode;
 
+}
+
+static void handleKernelCtrlC(void)
+{
+    Process *current = getCurrentProcess();
+    if (!processCanHandleCtrlC(current)) {
+        return;
+    }
+
+    putChar('^');
+    putChar('C');
+    putChar('\n');
+
+    killProcess(current->pid);
 }

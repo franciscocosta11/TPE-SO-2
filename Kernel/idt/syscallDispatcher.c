@@ -63,6 +63,7 @@ uint64_t syscallDispatcher(Registers * registers) {
 
 		case 0x800000A0: return sys_exec((int (*)(void)) registers->rdi);
         case 0x800000A1: return sys_exit((int32_t)registers->rdi);
+		case 0x800000A2: return sys_yield();
 
 		case 0x800000B0: return sys_register_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
 		case 0x800000B1: return sys_register_ctrl_key((uint8_t) registers->rdi, (SpecialKeyHandler) registers->rsi);
@@ -304,6 +305,11 @@ int32_t sys_exit(int32_t status) {
 	// Conmutar inmediatamente para no seguir ejecutando el proceso terminado
 	contextSwitch();
 	return 0; // No debería alcanzarse
+}
+
+int32_t sys_yield(void) {
+	contextSwitch();
+	return 0;
 }
 
 int32_t sys_get_pid(void) {
