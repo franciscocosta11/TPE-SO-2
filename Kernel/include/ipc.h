@@ -7,6 +7,9 @@
 // Forward declaration so FileOps can reference File*
 typedef struct File File;
 
+/**
+ * @brief Tabla de operaciones que implementa un tipo de archivo.
+ */
 typedef struct {
 
     /**
@@ -38,16 +41,25 @@ typedef struct {
 
 } FileOps;
 
+/**
+ * @brief Descriptor genérico con punteros a operaciones y estado privado.
+ */
 struct File
 {
-    FileOps *ops;
-    void *privateData;
-    int flags;
-    int refcount;
+    FileOps *ops;        /**< Implementación concreta (console, pipe, etc.). */
+    void *privateData;   /**< Datos internos específicos del backend. */
+    int flags;           /**< Bits de modo de apertura. */
+    int refcount;        /**< Referencias activas al descriptor. */
 };
 
-// Reference counting helpers (camelCase)
+/**
+ * @brief Incrementa el contador de referencias del File.
+ */
 void fileRetain(File *file);
+
+/**
+ * @brief Decrementa el contador y cierra cuando llega a cero.
+ */
 void fileRelease(File *file);
 
 #endif // IPC_H

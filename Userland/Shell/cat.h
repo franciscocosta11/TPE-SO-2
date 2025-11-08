@@ -1,13 +1,11 @@
 #ifndef CAT_H
 #define CAT_H
 
+#include <stdint.h>
+
 /**
- * cat_entry - Entry point for the cat command
- * @arg: Unused argument
- * 
- * Reads from stdin and writes to stdout until EOF is reached.
- * This is the process entry point for the cat command.
+ * @brief Entrada del comando cat: copia stdin -> stdout hasta EOF.
  */
-void cat_entry(void *arg);
+void cat_entry(uint64_t argc, char **argv);
 
 #endif // CAT_H

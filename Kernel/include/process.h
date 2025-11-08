@@ -70,6 +70,8 @@ extern int currentPid;
  *   - Next: enlace simple para colas READY.
  *   - Entry/Arg: punto de entrada y argumento inicial del proceso.
  */
+typedef void (*ProcessEntryPoint)(uint64_t argc, char **argv);
+
 typedef struct Process
 {
     int pid;            // identificador del proceso
@@ -83,7 +85,7 @@ typedef struct Process
     bool isForeground;
     struct Process *next; // siguiente en la lista
     int waiterPid;
-    void (*entry)(void *); // entry point
+    ProcessEntryPoint entry; // entry point
     char **Arg;             // argumento inicial
     File *fdTable[MAX_FD];
 } Process;
@@ -99,30 +101,91 @@ extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
 void initProcessSystem(void);
 
 /**
- * @brief Crea un nuevo proceso y lo deja listo para ser scheduleado.
+ * @brief Crea un nuevo proceso y lo agrega a la cola READY.
  *
- * @param Entry      Puntero a la función que el proceso ejecutará.
- * @param Arg        Argumento que se pasará a Entry al arrancar.
- * @param StackBase  Dirección de memoria reservada para el stack del proceso.
- * @param StackSize  Tamaño en bytes del stack apuntado por StackBase.
- * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
- *         slots libres o stack inválido).
+ * Se reserva un stack (si StackBase es NULL se toma del heap), se inicializa
+ * el PCB y se heredan los descriptores del proceso padre.
+ *
+ * @param name Nombre descriptivo usado por ps.
+ * @param Entry Punto de entrada que ejecutará el proceso.
+ * @param Argv Vector de argumentos terminado en NULL.
+ * @param Argc Cantidad de argumentos de Argv.
+ * @param StackBase Stack preasignado o NULL para que lo reserve el kernel.
+ * @param StackSize Tamaño del stack si StackBase no es NULL.
+ * @param priority Prioridad inicial (0..3).
+ * @param isForeground Indica si bloquea a la shell al ejecutarse.
+ * @return Puntero al PCB creado o NULL si no hay recursos.
  */
-Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize, int priority, bool isForeground);
+Process *createProcess(char* name, ProcessEntryPoint Entry, char **Argv, int Argc ,void *StackBase, size_t StackSize, int priority, bool isForeground);
 
 /**
- * @brief Termina el proceso actual con el código de salida indicado.
+ * @brief Termina el proceso actual con el código indicado.
  *
- * @param ExitCode Código numérico de salida del proceso.
+ * Libera recursos asociados, despierta a su waiter (si existe) y marca al
+ * proceso como TERMINATED.
+ *
+ * @param ExitCode Código de salida reportado al proceso que espera.
  */
 void exitCurrentProcess(int ExitCode);
 
-//! Agregar comentario
+/**
+ * @brief Mata el proceso identificado por @p pid.
+ *
+ * Si el PID corresponde al proceso en ejecución, delega en
+ * @ref exitCurrentProcess. En otros casos limpia recursos y lo remueve de
+ * las colas del scheduler.
+ *
+ * @param pid Proceso a terminar.
+ * @return 0 si tuvo éxito, -1 ante errores (PID inválido).
+ */
 int killProcess(int pid);
+
+/**
+ * @brief Termina un proceso y toda su descendencia.
+ *
+ * Recorre recursivamente los hijos del PID dado invocando @ref killProcess
+ * sobre cada uno de ellos.
+ */
+void killProcessTree(int pid);
+
+/**
+ * @brief Alterna el estado READY/BLOCKED de un proceso dado.
+ *
+ * Se usa principalmente desde la consola para forzar bloqueos o desbloqueos
+ * manuales.
+ *
+ * @param pid Proceso objetivo.
+ * @return Nuevo estado (BLOCKED o READY) o -1 si falló.
+ */
 int toggleProcessBlock(int pid);
+
+/**
+ * @brief Ajusta la prioridad de scheduling de un proceso.
+ *
+ * Si el proceso estaba READY se reencola según la nueva prioridad.
+ *
+ * @param pid Proceso a modificar.
+ * @param priority Valor entre MIN_PRIORITY y MAX_PRIORITY-1.
+ * @return 0 si se aplicó, -1 si los parámetros son inválidos.
+ */
 int setProcessPriority(int pid, int priority);
+
+/**
+ * @brief Reincorpora a READY un proceso previamente bloqueado.
+ *
+ * @param pid Proceso que se quiere despertar.
+ * @return 0 si se agregó correctamente a READY, -1 si el PID es inválido.
+ */
 int unblockProcess(int pid);
+
+/**
+ * @brief Suspende al proceso actual hasta que el PID indicado termine.
+ */
 void waitProcess(int pid);
+
+/**
+ * @brief Marca al proceso actual como BLOCKED y cede la CPU.
+ */
 void blockCurrentProcess(void);
 
 // ============= HELPERS =============
@@ -144,6 +207,13 @@ Process *getCurrentProcess(void);
  */
 int getCurrentPid(void);
 
+/**
+ * @brief Copia una instantánea de la tabla de procesos.
+ *
+ * @param buffer Arreglo destino donde escribir la información.
+ * @param maxCount Cantidad máxima de entradas que puede almacenar buffer.
+ * @return Número de procesos escritos en buffer.
+ */
 size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
 
 /**
@@ -154,8 +224,19 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
  */
 Process *getProcessByPid(int pid);
 
+/**
+ * @brief Indica si el PCB corresponde a la shell interactiva.
+ */
 bool isShellProcess(const Process *process);
+
+/**
+ * @brief Determina si el proceso está suscrito al manejo de Ctrl+C.
+ */
 bool processCanHandleCtrlC(const Process *process);
+
+/**
+ * @brief Devuelve el proceso en foreground que puede ser terminado por Ctrl+C.
+ */
 Process *getKillableForegroundProcess(void);
 
 #endif // PROCESS_H

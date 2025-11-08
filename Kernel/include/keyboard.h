@@ -101,21 +101,55 @@ enum KEYBOARD_OPTIONS {
     MODIFY_BUFFER = 0b00000100
 };
 
+/**
+ * @brief Obtiene un caracter del buffer de teclado aplicando opciones.
+ *
+ * @param keyboard_options Flags que definen comportamiento (eco, espera, etc.).
+ * @return Caracter leído o -1 si no hay entrada disponible.
+ */
 int8_t getKeyboardCharacter(enum KEYBOARD_OPTIONS keyboard_options);
-void addCharToBuffer(int8_t ascii, uint8_t showOutput);
-uint16_t clearBuffer();
-uint8_t keyboardHandler();
 
-// All special keys *EXCEPT* for TAB and RETURN can be registered
-// Printable keys, including tab (`\t`) and return (`\n`) can be obtained via `getKeyboardCharacter` (`getchar`/`sys_read`)
+/**
+ * @brief Inserta manualmente un caracter en el buffer de entrada.
+ *
+ * @param ascii Código ASCII a encolar.
+ * @param showOutput Controla si se imprime en pantalla.
+ */
+void addCharToBuffer(int8_t ascii, uint8_t showOutput);
+
+/**
+ * @brief Limpia el buffer de teclado y devuelve la cantidad de caracteres descartados.
+ */
+uint16_t clearBuffer(void);
+
+/**
+ * @brief Handler de la IRQ1. Traduce scancodes y encola caracteres.
+ *
+ * @return 1 si se procesó un snapshot de registros, 0 en caso contrario.
+ */
+uint8_t keyboardHandler(void);
+
+/**
+ * @brief Registra un handler para una tecla especial (excepto TAB/RETURN).
+ */
 uint8_t registerSpecialKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel);
+/** @brief Limpia los handlers registrados fuera del kernel. */
 void clearKeyFnMapNonKernel(SpecialKeyHandler * map);
+/** @brief Restaura el mapa de handlers para procesos no kernel. */
 void restoreKeyFnMapNonKernel(SpecialKeyHandler * map);
 
+/**
+ * @brief Registra un handler para combinaciones controladas (Ctrl+Key).
+ */
 uint8_t registerControlKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel);
+/** @brief Limpia el mapa de teclas Ctrl registradas por userland. */
 void clearControlKeyFnMapNonKernel(SpecialKeyHandler * map);
+/** @brief Restaura el mapa de teclas Ctrl para userland. */
 void restoreControlKeyFnMapNonKernel(SpecialKeyHandler * map);
 
+/**
+ * @brief Inicializa los semáforos y buffers usados para sincronizar el teclado.
+ */
 void initKeyboardInputSync(void);
 
 #endif

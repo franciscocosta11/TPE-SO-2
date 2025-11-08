@@ -54,8 +54,10 @@ void *initializeKernelBinary()
 	return getStackBase();
 }
 
-void idleProcessMain(void *arg)
-{ // el parámetro no se usa pero es por convención que se deja
+void idleProcessMain(uint64_t argc, char **argv)
+{
+	(void)argc;
+	(void)argv;
 	while (1)
 	{
 		_hlt();
@@ -77,7 +79,7 @@ int main()
 	createProcess("idle", &idleProcessMain, idleArgs, 1, NULL, 0, 0, BACKGROUND);
 
 	char *shellArgs[] = {"shell"};
-	void (*shellEntryPoint)(void *) = (void (*)(void *))shellModuleAddress; // no sé si es necesario este casteo
+	void (*shellEntryPoint)(uint64_t, char **) = (void (*)(uint64_t, char **))shellModuleAddress;
 	Process *shellProc = createProcess("shell", shellEntryPoint, shellArgs, 1, NULL, 0, 0, FOREGROUND);
 	if (shellProc != NULL)
 	{

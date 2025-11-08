@@ -3,10 +3,13 @@
 
 #include "ipc.h"
 
-// Factory to create a kernel pipe and return two File* ends
-// readFile: PIPE read end (fd used with read())
-// writeFile: PIPE write end (fd used with write())
-// Returns 0 on success, <0 on failure
+/**
+ * @brief Crea un pipe en espacio kernel y entrega ambos extremos.
+ *
+ * @param readFile Devuelve el File* para operaciones de lectura.
+ * @param writeFile Devuelve el File* para operaciones de escritura.
+ * @return 0 si tuvo éxito, <0 si no hay recursos disponibles.
+ */
 int createKernelPipe(File **readFile, File **writeFile);
 
 #endif // PIPE_H

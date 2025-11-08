@@ -1,5 +1,6 @@
 #include "./../libc/stdio.h"
 #include <string.h>
+#include <stdint.h>
 #include <syscalls.h>
 #include <sys.h>
 
@@ -8,9 +9,10 @@
  * This function reads input one byte at a time and echoes it
  * to stdout immediately, making it suitable for pipe operations.
  */
-void cat_entry(void *arg)
+void cat_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     char buf[1];  // Read 1 byte at a time for immediate output
     int n;
     

@@ -20,7 +20,7 @@
 ### Syscalls Implementadas
 ```c
 // Process Management
-int64_t sys_create_process(void (*entry)(void*), void *arg, char *name, int foreground, int priority);
+int64_t sys_create_process(void (*entry)(uint64_t, char **), void *arg, char *name, int foreground, int priority);
 int64_t sys_kill(int pid);
 int64_t sys_block(int pid);
 int64_t sys_unblock(int pid);
