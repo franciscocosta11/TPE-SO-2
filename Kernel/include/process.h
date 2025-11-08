@@ -73,6 +73,7 @@ extern int currentPid;
 typedef struct Process
 {
     int pid;            // identificador del proceso
+    int parentPid;
     ProcessState state; // estado actual del proceso (ready running blocked etc)
     void *stackBase;  // base del stack --> para la posterior liberacion
     size_t stackSize; // tamaÑo del stack
@@ -155,5 +156,6 @@ Process *getProcessByPid(int pid);
 
 bool isShellProcess(const Process *process);
 bool processCanHandleCtrlC(const Process *process);
+Process *getKillableForegroundProcess(void);
 
 #endif // PROCESS_H

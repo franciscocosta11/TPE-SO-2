@@ -75,6 +75,8 @@ static void mvar_writer_entry(uint64_t argc, char **argv);
 static void mvar_reader_entry(uint64_t argc, char **argv);
 static void trim(char *s);
 static void test_process_entry(void *arg);
+static void test_mm_entry(uint64_t argc, char **argv);
+static void test_prio_entry(uint64_t argc, char **argv);
 
 static void printPreviousCommand(enum REGISTERABLE_KEYS scancode);
 static void printNextCommand(enum REGISTERABLE_KEYS scancode);
@@ -102,10 +104,56 @@ static void test_mm_slot_init(void);
 static void test_mm_cleanup_slots(void);
 static TestMmSlot *test_mm_acquire_slot(void);
 static TestMmSlot *test_mm_find_slot_by_argv(char **argv);
-static void test_mm_entry(uint64_t argc, char **argv);
+typedef struct
+{
+    char arg[MAX_BUFFER_SIZE];
+    char *argv[1];
+} TestPrioContext;
+
+static TestPrioContext testPrioContext = {0};
+static uint8_t testPrioRunning = 0;
+
+static void test_prio_context_init(void)
+{
+    if (testPrioContext.argv[0] == NULL)
+    {
+        testPrioContext.argv[0] = testPrioContext.arg;
+    }
+}
+
+static void refreshTestPrioRunning(void)
+{
+    if (!testPrioRunning)
+    {
+        return;
+    }
+
+    ProcessInfo snapshot[PROCESS_SNAPSHOT_CAP];
+    int32_t count = getProcesses(snapshot, PROCESS_SNAPSHOT_CAP);
+    for (int32_t i = 0; i < count; i++)
+    {
+        if (strcmp(snapshot[i].name, "test_prio") == 0 && snapshot[i].state != TERMINATED)
+        {
+            return;
+        }
+    }
+
+    testPrioRunning = 0;
+}
 
 
 static uint8_t last_command_arrowed = 0;
+static uint8_t builtin_background_flag = 0;
+
+static uint8_t getCurrentBuiltinBackground(void)
+{
+    return builtin_background_flag;
+}
+
+static void setCurrentBuiltinBackground(uint8_t value)
+{
+    builtin_background_flag = value;
+}
 // Small wrappers to adapt void exception triggers to builtin(int)(void)
 static int divzero_cmd(void)
 {
@@ -300,7 +348,9 @@ int main()
                 }
                 else
                 {
+                    setCurrentBuiltinBackground(runInBackground);
                     last_command_output = commands[i].builtin();
+                    setCurrentBuiltinBackground(0);
                 }
                 strncpy(command_history[command_history_last], command_history_buffer, 255);
                 command_history[command_history_last][buffer_dim] = '\0';
@@ -478,6 +528,8 @@ int test_prio_command(void)
     char *arg = NULL;
     char *token = NULL;
 
+    refreshTestPrioRunning();
+
     while ((token = strtok(NULL, " ")) != NULL)
     {
         if (strcmp(token, "&") == 0)
@@ -501,16 +553,31 @@ int test_prio_command(void)
         return 1;
     }
 
-    char *argv[2];
-    argv[0] = arg;
-    argv[1] = NULL;
-
-    uint64_t result = test_prio(1, argv);
-
-    if (result != 0)
+    if (testPrioRunning)
     {
-        fprintf(FD_STDERR, "test_prio failed with code %lld\n", (long long)result);
+        fprintf(FD_STDERR, "test_prio is already running.\n");
         return 1;
+    }
+
+    test_prio_context_init();
+    strncpy(testPrioContext.arg, arg, MAX_BUFFER_SIZE - 1);
+    testPrioContext.arg[MAX_BUFFER_SIZE - 1] = '\0';
+
+    uint8_t runInBackground = getCurrentBuiltinBackground();
+
+    testPrioRunning = 1;
+    int pid = createProcess("test_prio", (void (*)(void *))test_prio_entry, testPrioContext.argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
+    if (pid <= 0)
+    {
+        fprintf(FD_STDERR, "Failed to start test_prio process\n");
+        testPrioRunning = 0;
+        return 1;
+    }
+
+    if (!runInBackground)
+    {
+        waitProcess(pid);
+        testPrioRunning = 0;
     }
 
     return 0;
@@ -618,7 +685,8 @@ int test_mm_command(void)
     slot->arg[MAX_BUFFER_SIZE - 1] = '\0';
 
     slot->pid = -1;
-    int pid = createProcess("test_mm", (void (*)(void *))test_mm_entry, slot->argv, 1, 0, 0, 0, 0);
+    uint8_t runInBackground = getCurrentBuiltinBackground();
+    int pid = createProcess("test_mm", (void (*)(void *))test_mm_entry, slot->argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
 
     if (pid <= 0)
     {
@@ -629,7 +697,13 @@ int test_mm_command(void)
     }
 
     slot->pid = pid;
-    printf("test_mm running in background (PID %d).\n", pid);
+
+    if (!runInBackground)
+    {
+        waitProcess(pid);
+        test_mm_cleanup_slots();
+    }
+
     return 0;
 }
 
@@ -666,6 +740,19 @@ cleanup:
     }
 
     exitProcess(exitCode);
+}
+
+static void test_prio_entry(uint64_t argc, char **argv)
+{
+    uint64_t result = test_prio(argc, argv);
+    if (result != 0)
+    {
+        fprintf(FD_STDERR, "test_prio failed with code %lld\n", (long long)result);
+        testPrioRunning = 0;
+        exitProcess((int)result);
+    }
+    testPrioRunning = 0;
+    exitProcess(0);
 }
 
 static void test_process_entry(void *arg)

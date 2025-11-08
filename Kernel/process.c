@@ -22,6 +22,7 @@ void initProcessSystem(void)
     for (int i = 0; i < MAX_PROCESSES; i++)
     {
         processTable[i].pid = 0; /* pid 0 = libre */
+        processTable[i].parentPid = 0;
         processTable[i].state = TERMINATED;
         processTable[i].entry = NULL;
         processTable[i].Arg = NULL;
@@ -93,6 +94,7 @@ Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc,
     // Heredar file descriptors del proceso actual (si existe)
     {
         Process *parent = getCurrentProcess();
+        p->parentPid = parent != NULL ? parent->pid : 0;
         if (parent != NULL)
         {
             for (int j = 0; j < MAX_FD; j++)
@@ -169,6 +171,7 @@ void exitCurrentProcess(int exitCode)
     currentProcess->Arg = NULL;
     currentProcess->state = TERMINATED;
     currentProcess->pid = 0;
+    currentProcess->parentPid = 0;
     availableProcesses++;
     currentPid = 0;
 
@@ -251,6 +254,7 @@ int killProcess(int pid)
             victim->Arg = NULL;
             victim->state = TERMINATED;
             victim->pid = 0;
+            victim->parentPid = 0;
             availableProcesses++;
 
             return 0;
@@ -472,12 +476,50 @@ bool processCanHandleCtrlC(const Process *process)
         return false;
     }
 
-    if (process->pid == IDLE_PID || process->pid == SHELL_PID)
+    if (process->pid == IDLE_PID || isShellProcess(process))
     {
         return false;
     }
 
+    if (process->waiterPid > 0)
+    {
+        return true;
+    }
+
     return process->isForeground;
+}
+
+Process *getKillableForegroundProcess(void)
+{
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        Process *candidate = &processTable[i];
+        if (candidate->pid != 0 && candidate->state != TERMINATED && processCanHandleCtrlC(candidate))
+        {
+            return candidate;
+        }
+    }
+    return NULL;
+}
+
+static void killProcessChildren(int pid)
+{
+    for (int i = 0; i < MAX_PROCESSES; i++)
+    {
+        Process *child = &processTable[i];
+        if (child->pid != 0 && child->parentPid == pid)
+        {
+            int childPid = child->pid;
+            killProcessChildren(childPid);
+            killProcess(childPid);
+        }
+    }
+}
+
+void killProcessTree(int pid)
+{
+    killProcessChildren(pid);
+    killProcess(pid);
 }
 
 // Bloquea el proceso actual

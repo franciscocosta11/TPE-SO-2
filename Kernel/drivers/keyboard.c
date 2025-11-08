@@ -374,14 +374,22 @@ uint8_t keyboardHandler(){
 
 static void handleKernelCtrlC(void)
 {
-    Process *current = getCurrentProcess();
-    if (!processCanHandleCtrlC(current)) {
+    Process *target = getKillableForegroundProcess();
+    if (!processCanHandleCtrlC(target)) {
+        target = getCurrentProcess();
+    }
+
+    if (processCanHandleCtrlC(target)) {
+        putChar('^');
+        putChar('C');
+        putChar('\n');
+        killProcessTree(target->pid);
+        contextSwitch();
         return;
     }
 
     putChar('^');
     putChar('C');
     putChar('\n');
-
-    killProcess(current->pid);
+    addCharToBuffer(NEW_LINE_CHAR, 1);
 }
