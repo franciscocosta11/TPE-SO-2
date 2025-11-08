@@ -153,6 +153,10 @@ int32_t semGetValue(int32_t semId) {
     return sys_sem_get_value(semId);
 }
 
+int32_t semReset(int32_t semId, uint32_t newValue) {
+    return sys_sem_reset(semId, newValue);
+}
+
 void semEnterCriticalTest(void) {
     sys_sem_enter_critical_test();
 }

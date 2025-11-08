@@ -161,6 +161,70 @@ int32_t semClose(int32_t semId) {
     return 0;
 }
 
+// Remueve un proceso de todas las colas de espera de semáforos
+// Se llama cuando un proceso es terminado/killed para evitar deadlocks
+void semRemoveProcessFromAllQueues(int32_t pid) {
+    if (pid <= 0) {
+        return;
+    }
+
+    acquireSemLock();
+
+    // Iterar sobre todos los semáforos
+    for (int i = 0; i < MAX_SEMAPHORES; i++) {
+        if (!semaphores[i].inUse) {
+            continue;
+        }
+
+        // Buscar el PID en la lista de bloqueados
+        for (uint32_t j = 0; j < semaphores[i].blockedCount; j++) {
+            if (semaphores[i].blockedPids[j] == pid) {
+                // Encontrado - removerlo de la lista
+                // Mover todos los siguientes hacia adelante
+                for (uint32_t k = j; k < semaphores[i].blockedCount - 1; k++) {
+                    semaphores[i].blockedPids[k] = semaphores[i].blockedPids[k + 1];
+                }
+                semaphores[i].blockedCount--;
+
+                // IMPORTANTE: NO incrementar el valor del semáforo
+                // El proceso ya hizo semWait (decrementó el valor) y quedó bloqueado
+                // El valor negativo del semáforo ya refleja correctamente que hay
+                // procesos bloqueados esperando. Solo removemos el PID de la lista.
+
+                // No seguir buscando en este semáforo (un proceso solo puede estar una vez)
+                break;
+            }
+        }
+    }
+
+    releaseSemLock();
+}
+
+// Resetea un semáforo a un nuevo valor y limpia todos los procesos bloqueados
+// Útil para reinicializar semáforos entre ejecuciones
+// IMPORTANTE: No desbloquea procesos activos, solo limpia la lista
+int32_t semReset(int32_t semId, uint32_t newValue) {
+    if (semId < 0 || semId >= MAX_SEMAPHORES) {
+        return -1;  // ID inválido
+    }
+
+    if (!semaphores[semId].inUse) {
+        return -2;  // Semáforo no existe
+    }
+
+    acquireSemLock();
+
+    // Simplemente resetear el valor y limpiar la lista de bloqueados
+    // NO desbloquear procesos porque pueden ser procesos muertos que ya fueron
+    // limpiados por semRemoveProcessFromAllQueues(), o pueden no existir más
+    semaphores[semId].value = newValue;
+    semaphores[semId].blockedCount = 0;
+
+    releaseSemLock();
+
+    return 0;
+}
+
 // Operación Wait (P) - Decrementa el semáforo, bloquea si es necesario
 // Esta función usa una instrucción atómica para garantizar exclusión mutua
 int32_t semWait(int32_t semId) {

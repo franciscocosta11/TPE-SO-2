@@ -142,6 +142,7 @@ int32_t semClose(int32_t semId);
 int32_t semWait(int32_t semId);
 int32_t semPost(int32_t semId);
 int32_t semGetValue(int32_t semId);
+int32_t semReset(int32_t semId, uint32_t newValue);
 
 // Semaphore testing functions
 void semEnterCriticalTest(void);

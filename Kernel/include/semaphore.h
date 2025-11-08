@@ -26,6 +26,13 @@ int32_t semPost(int32_t semId);
 // Obtiene el valor actual de un semáforo (para debugging)
 int32_t semGetValue(int32_t semId);
 
+// Resetea un semáforo a un nuevo valor y limpia todos los procesos bloqueados
+int32_t semReset(int32_t semId, uint32_t newValue);
+
+// Remueve un proceso de todas las colas de espera de semáforos
+// Se llama cuando un proceso es terminado/killed para evitar deadlocks
+void semRemoveProcessFromAllQueues(int32_t pid);
+
 // Funciones para testing de exclusión mutua
 void semEnterCriticalTest(void);
 
