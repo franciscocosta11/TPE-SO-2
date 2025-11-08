@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 #include <fonts.h>
 
 #include "process.h"
@@ -457,6 +458,26 @@ Process *getProcessByPid(int pid)
     }
 
     return NULL;
+}
+
+bool isShellProcess(const Process *process)
+{
+    return process != NULL && process->name != NULL && strcmp(process->name, SHELL_PROCESS_NAME) == 0;
+}
+
+bool processCanHandleCtrlC(const Process *process)
+{
+    if (process == NULL)
+    {
+        return false;
+    }
+
+    if (process->pid == IDLE_PID || process->pid == SHELL_PID)
+    {
+        return false;
+    }
+
+    return process->isForeground;
 }
 
 // Bloquea el proceso actual

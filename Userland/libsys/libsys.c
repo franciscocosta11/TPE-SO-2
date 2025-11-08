@@ -128,6 +128,10 @@ int32_t unblockProcess(int32_t pid) {
     return sys_unblock_process(pid);
 }
 
+int32_t yieldProcess(void) {
+    return sys_yield();
+}
+
 // Semaphore functions
 int32_t semCreate(const char *name, uint32_t initialValue) {
     return sys_sem_create(name, initialValue);
