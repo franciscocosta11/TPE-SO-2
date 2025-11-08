@@ -331,6 +331,11 @@ uint8_t keyboardHandler(){
             handleKernelCtrlC();
             return scancode;
         }
+
+        if (ctrlChar == 'd' || ctrlChar == 'D') {
+            addCharToBuffer(EOF, 0);
+            return scancode;
+        }
     }
 
     if (CONTROL_KEY_PRESSED && code >= ESCAPE_KEY && code <= F12_KEY && ControlKeyFnMap[code].fn != NULL) {
