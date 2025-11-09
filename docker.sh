@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to start and enter the TPE-ARQ Docker container
 
-CONTAINER_NAME="TPE-ARQ-g08-64018-64288-64646"
+CONTAINER_NAME="TPE-SO-2-g24-65627-65145-65202"
 
 # COLORS
 RED='\033[0;31m'

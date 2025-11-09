@@ -25,7 +25,12 @@ extern int availableProcesses;
 
 #define MAX_FD 16
 
-// El orden DEBE COINCIDIR con tu macro pushState en interrupts.asm
+/**
+ * @brief Frame de pila que se guarda al switchear de contexto.
+ *
+ * El orden de los registros debe coincidir con la macro `pushState` en
+ * `interrupts.asm` para garantizar que el scheduler pueda restaurarlos.
+ */
 typedef struct
 {
     // --- pushState ---
@@ -117,12 +122,45 @@ Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc 
  */
 void exitCurrentProcess(int ExitCode);
 
-//! Agregar comentario
+/**
+ * @brief Termina el proceso indicado y libera sus recursos inmediatos.
+ *
+ * @param pid PID del proceso objetivo.
+ * @return 0 si el proceso fue eliminado, negativo si no existe o no puede
+ *         finalizarse.
+ */
 int killProcess(int pid);
+/**
+ * @brief Alterna el estado de bloqueo del proceso.
+ *
+ * @param pid PID del proceso objetivo.
+ * @return Estado resultante o código negativo ante error.
+ */
 int toggleProcessBlock(int pid);
+/**
+ * @brief Actualiza la prioridad de planificación del proceso.
+ *
+ * @param pid PID del proceso cuyo valor se ajusta.
+ * @param priority Nueva prioridad solicitada.
+ * @return 0 si se aplicó correctamente, negativo en caso contrario.
+ */
 int setProcessPriority(int pid, int priority);
+/**
+ * @brief Desbloquea un proceso previamente bloqueado.
+ *
+ * @param pid PID del proceso a despertar.
+ * @return 0 si fue desbloqueado, negativo si falla.
+ */
 int unblockProcess(int pid);
+/**
+ * @brief Bloquea al proceso actual hasta que termine el proceso dado.
+ *
+ * @param pid PID del proceso a esperar.
+ */
 void waitProcess(int pid);
+/**
+ * @brief Marca al proceso actual como bloqueado y cede la CPU.
+ */
 void blockCurrentProcess(void);
 
 // ============= HELPERS =============
@@ -144,6 +182,13 @@ Process *getCurrentProcess(void);
  */
 int getCurrentPid(void);
 
+/**
+ * @brief Copia información resumida de los procesos activos.
+ *
+ * @param buffer Búfer destino proporcionado por el llamador.
+ * @param maxCount Capacidad máxima del búfer en entradas.
+ * @return Cantidad de procesos copiados en el búfer.
+ */
 size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
 
 /**
@@ -154,8 +199,31 @@ size_t getProcessSnapshot(ProcessInfo *buffer, size_t maxCount);
  */
 Process *getProcessByPid(int pid);
 
+/**
+ * @brief Indica si el proceso corresponde a la shell interactiva.
+ *
+ * @param process Puntero al PCB evaluado.
+ * @return true si el nombre coincide con la shell, false en caso contrario.
+ */
 bool isShellProcess(const Process *process);
+/**
+ * @brief Evalúa si el proceso tolera la señal generada por Ctrl+C.
+ *
+ * @param process Proceso objetivo.
+ * @return true si puede manejar la señal, false en caso contrario.
+ */
 bool processCanHandleCtrlC(const Process *process);
+/**
+ * @brief Obtiene el proceso de primer plano susceptible de ser terminado.
+ *
+ * @return Proceso en foreground listo para ser finalizado o NULL.
+ */
 Process *getKillableForegroundProcess(void);
+/**
+ * @brief Finaliza un proceso y todos sus descendientes.
+ *
+ * @param pid Raíz del árbol de eliminación.
+ */
+void killProcessTree(int pid);
 
 #endif // PROCESS_H

@@ -1,5 +1,7 @@
+#!/bin/bash
+
 # Validates the existance of the TPE-ARQ container, starts it up & compiles the project
-CONTAINER_NAME="TPE-ARQ-g08-64018-64288-64646"
+CONTAINER_NAME="TPE-SO-2-g24-65627-65145-65202"
 HOST_UID=$(id -u)
 HOST_GID=$(id -g)
 

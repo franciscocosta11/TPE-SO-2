@@ -3,41 +3,93 @@
 
 #include <stdint.h>
 
-// Inicializa el sistema de semáforos
+/**
+ * @brief Inicializa todas las estructuras del sistema de semáforos.
+ */
 void initSemaphores(void);
 
-// Crea un nuevo semáforo con el nombre y valor inicial dados
-// Retorna el ID del semáforo o un valor negativo en caso de error
+/**
+ * @brief Crea un nuevo semáforo identificado por nombre.
+ *
+ * @param name Nombre simbólico del semáforo.
+ * @param initialValue Valor inicial que tendrá el contador.
+ * @return Identificador del semáforo o negativo si falla.
+ */
 int32_t semCreate(const char *name, uint32_t initialValue);
 
-// Abre un semáforo existente por nombre
-// Retorna el ID del semáforo o un valor negativo en caso de error
+/**
+ * @brief Abre un semáforo existente utilizando su nombre.
+ *
+ * @param name Nombre con el que fue creado.
+ * @return Identificador del semáforo o negativo si no existe.
+ */
 int32_t semOpen(const char *name);
 
-// Cierra un semáforo (decrementa el contador de referencias)
+/**
+ * @brief Cierra un semáforo y reduce su contador de referencias.
+ *
+ * @param semId Identificador devuelto por `semCreate`/`semOpen`.
+ * @return 0 si se cerró correctamente, negativo en caso contrario.
+ */
 int32_t semClose(int32_t semId);
 
-// Operación Wait (P) - Decrementa el semáforo, bloquea si es necesario
+/**
+ * @brief Realiza la operación de espera (P) sobre el semáforo.
+ *
+ * @param semId Identificador del semáforo.
+ * @return 0 si decreció, negativo si no fue posible.
+ */
 int32_t semWait(int32_t semId);
 
-// Operación Post (V) - Incrementa el semáforo, desbloquea si es necesario
+/**
+ * @brief Realiza la operación de señalización (V) sobre el semáforo.
+ *
+ * @param semId Identificador del semáforo.
+ * @return 0 si incrementó correctamente, negativo si falló.
+ */
 int32_t semPost(int32_t semId);
 
-// Obtiene el valor actual de un semáforo (para debugging)
+/**
+ * @brief Obtiene el valor actual del contador de un semáforo.
+ *
+ * @param semId Identificador del semáforo.
+ * @return Valor del contador o negativo en caso de error.
+ */
 int32_t semGetValue(int32_t semId);
 
-// Resetea un semáforo a un nuevo valor y limpia todos los procesos bloqueados
+/**
+ * @brief Restablece el semáforo a un nuevo valor y libera a los procesos bloqueados.
+ *
+ * @param semId Identificador del semáforo.
+ * @param newValue Nuevo valor inicial.
+ * @return 0 si la operación fue exitosa, negativo en caso contrario.
+ */
 int32_t semReset(int32_t semId, uint32_t newValue);
 
-// Remueve un proceso de todas las colas de espera de semáforos
-// Se llama cuando un proceso es terminado/killed para evitar deadlocks
+/**
+ * @brief Quita a un proceso de todas las colas de espera de semáforos.
+ *
+ * Se invoca al terminar un proceso para evitar deadlocks.
+ *
+ * @param pid PID del proceso removido.
+ */
 void semRemoveProcessFromAllQueues(int32_t pid);
 
-// Funciones para testing de exclusión mutua
+/**
+ * @brief Marca la entrada a una sección crítica para pruebas.
+ */
 void semEnterCriticalTest(void);
 
+/**
+ * @brief Marca la salida de la sección crítica utilizada en pruebas.
+ */
 void semLeaveCriticalTest(void);
 
+/**
+ * @brief Devuelve la cantidad de procesos en la sección crítica de prueba.
+ *
+ * @return Número de procesos concurrentes registrados.
+ */
 int32_t semGetCriticalCount(void);
 
 #endif // SEMAPHORE_H

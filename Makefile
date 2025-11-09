@@ -18,6 +18,9 @@ image: kernel bootloader userland
 buddy:
 	$(MAKE) MM_STRATEGY=MEMORY_MANAGER_BUDDY all
 
+pvs:
+	./run_pvs_analysis.sh
+
 clean:
 	$(MAKE) -C Bootloader clean
 	$(MAKE) -C Image clean
@@ -25,4 +28,4 @@ clean:
 	$(MAKE) -C Userland clean
 	rm -f *.zip
 
-.PHONY: bootloader image collections kernel userland all buddy clean
+.PHONY: bootloader image collections kernel userland all buddy clean pvs
