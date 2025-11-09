@@ -86,6 +86,9 @@ typedef struct Process
     size_t stackSize; // tamaÑo del stack
     uint64_t ctx;  //! Puntero al contexto --> REVISAR
     int priority;
+    uint8_t baseQuantum;
+    uint8_t quantumRemaining;
+    uint16_t readyTicks;
     char* name;
     bool isForeground;
     struct Process *next; // siguiente en la lista

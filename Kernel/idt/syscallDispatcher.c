@@ -7,6 +7,7 @@
 #include <video.h>
 #include <time.h>
 #include <process.h>
+#include <scheduler.h>
 #include <MemoryManager.h>
 #include <string.h>
 #include <interrupts.h>
@@ -313,6 +314,7 @@ int32_t sys_exit(int32_t status) {
 }
 
 int32_t sys_yield(void) {
+	schedulerOnYield();
 	contextSwitch();
 	return 0;
 }

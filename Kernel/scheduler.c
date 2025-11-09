@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 #include <string.h>
 
 #include "process.h"
@@ -12,6 +13,9 @@ int countReadyQueue[MAX_PRIORITIES];
 processQueue readyQueue[MAX_PRIORITIES];
 
 Process* currentProcess = NULL;
+static uint8_t rescheduleRequested = 0;
+
+static const uint8_t priorityQuanta[MAX_PRIORITIES] = {2, 3, 4, 5};
 
 // es para el aging --> Quizas lo podemos obviar si lo manejamos desde el mismo aging
 static int normalizePriority(int priority) {
@@ -57,6 +61,57 @@ static Process* dequeueReady(processQueue* queue) {
     return toReturn;
 }
 
+uint8_t schedulerQuantumForPriority(int priority) {
+    int idx = normalizePriority(priority);
+    return priorityQuanta[idx];
+}
+
+static void resetQuantum(Process *process) {
+    if (process == NULL) {
+        return;
+    }
+    process->baseQuantum = schedulerQuantumForPriority(process->priority);
+    process->quantumRemaining = process->baseQuantum;
+}
+
+static void ageReadyQueues(void) {
+    for (int prio = 0; prio < MAX_PRIORITIES; prio++) {
+        processQueue *queue = &readyQueue[prio];
+        Process *prev = NULL;
+        Process *node = queue->head;
+
+        while (node != NULL) {
+            Process *next = node->next;
+            if (node->readyTicks < UINT16_MAX) {
+                node->readyTicks++;
+            }
+
+            if (node->readyTicks >= AGING && prio < MAX_PRIORITIES - 1) {
+                if (prev == NULL) {
+                    queue->head = next;
+                } else {
+                    prev->next = next;
+                }
+                if (queue->tail == node) {
+                    queue->tail = prev;
+                }
+
+                countReadyQueue[prio]--;
+
+                node->priority = prio + 1;
+                node->readyTicks = 0;
+                resetQuantum(node);
+                enqueueReady(&readyQueue[node->priority], node);
+                countReadyQueue[node->priority]++;
+            } else {
+                prev = node;
+            }
+
+            node = next;
+        }
+    }
+}
+
 void initScheduler(void) {
     currentProcess = NULL;
 
@@ -73,6 +128,15 @@ void schedulerAddProcess(Process* process) {
     }
 
     int priority = normalizePriority(process->priority);
+    process->priority = priority;
+    if (process->baseQuantum == 0) {
+        process->baseQuantum = schedulerQuantumForPriority(priority);
+    }
+    if (process->quantumRemaining == 0 || process->quantumRemaining > process->baseQuantum) {
+        process->quantumRemaining = process->baseQuantum;
+    }
+    process->readyTicks = 0;
+
     enqueueReady(&readyQueue[priority], process);
     countReadyQueue[priority]++;
 }
@@ -83,8 +147,13 @@ uint64_t schedule(uint64_t savedContext) {
     if (running != NULL && savedContext != 0) {
         running->ctx = savedContext;
 
-        if (running->state == RUNNING) {
+        if (running->state == RUNNING && !rescheduleRequested) {
+            return savedContext;
+        }
+
+        if (running->state == RUNNING && rescheduleRequested) {
             running->state = READY;
+            resetQuantum(running);
             schedulerAddProcess(running);
         } else if (running->state == TERMINATED) {
             if (running->stackBase != NULL) {
@@ -96,6 +165,8 @@ uint64_t schedule(uint64_t savedContext) {
         }
     }
 
+    rescheduleRequested = 0;
+
     Process* next = pickNext();
     // pickNext siempre debería garantizar que se devuelva un proceso
     // si no hay procesos que devuelva el idle, pero nunca null
@@ -106,6 +177,13 @@ uint64_t schedule(uint64_t savedContext) {
     }
 
     next->state = RUNNING;
+    if (next->baseQuantum == 0) {
+        resetQuantum(next);
+    }
+    if (next->quantumRemaining == 0) {
+        next->quantumRemaining = next->baseQuantum;
+    }
+    next->readyTicks = 0;
     currentProcess = next;
     currentPid = next->pid;
 
@@ -169,4 +247,22 @@ void unschedule(Process* process) {
     if (countReadyQueue[priority] > 0) {
         countReadyQueue[priority]--;
     }
+}
+
+void schedulerOnTick(void) {
+    ageReadyQueues();
+
+    if (currentProcess != NULL && currentProcess->state == RUNNING) {
+        if (currentProcess->quantumRemaining > 0) {
+            currentProcess->quantumRemaining--;
+        }
+
+        if (currentProcess->quantumRemaining == 0) {
+            rescheduleRequested = 1;
+        }
+    }
+}
+
+void schedulerOnYield(void) {
+    rescheduleRequested = 1;
 }

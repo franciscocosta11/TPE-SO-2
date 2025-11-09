@@ -88,4 +88,9 @@ void schedulerOnYield(void);
  */
 void schedulerAddProcess(Process* process);
 
+/**
+ * @brief Devuelve el quantum (en ticks) asociado a una prioridad normalizada.
+ */
+uint8_t schedulerQuantumForPriority(int priority);
+
 #endif // SCHEDULER_H

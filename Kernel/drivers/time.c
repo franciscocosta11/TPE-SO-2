@@ -2,13 +2,15 @@
 #include <interrupts.h>
 
 #include <fonts.h>
-#include<cursor.h>
+#include <cursor.h>
+#include <scheduler.h>
 
 static unsigned long ticks = 0;
 
 void timer_handler() {
 	ticks++;
 	toggleCursor();
+	schedulerOnTick();
 }
 
 int ticks_elapsed() {

@@ -31,6 +31,9 @@ void initProcessSystem(void)
         processTable[i].next = NULL;
         processTable[i].waiterPid = -1;
         processTable[i].priority = MIN_PRIORITY;
+        processTable[i].baseQuantum = 0;
+        processTable[i].quantumRemaining = 0;
+        processTable[i].readyTicks = 0;
         processTable[i].ctx = 0;
         // Inicializar la tabla de descriptores de archivo en NULL
         for (int j = 0; j < MAX_FD; j++)
@@ -71,6 +74,9 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     p->Arg = Argv;
     p->next = NULL;
     p->priority = priority;
+    p->baseQuantum = schedulerQuantumForPriority(p->priority);
+    p->quantumRemaining = p->baseQuantum;
+    p->readyTicks = 0;
     p->name = name;
     p->isForeground = isForeground;
     // Limpiar la tabla de descriptores del nuevo proceso
@@ -361,6 +367,8 @@ int setProcessPriority(int pid, int priority)
         }
 
         p->priority = priority;
+        p->baseQuantum = schedulerQuantumForPriority(p->priority);
+        p->quantumRemaining = p->baseQuantum;
 
         if (wasReady)
         {
