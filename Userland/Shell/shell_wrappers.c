@@ -521,36 +521,19 @@ static void test_prio_entry(uint64_t argc, char **argv)
 
 static void test_process_entry(uint64_t argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
-
-    char *maxProcArg = NULL;
-    char *token = NULL;
-
-    while ((token = strtok(NULL, " ")) != NULL)
-    {
-        if (strcmp(token, "&") == 0)
-        {
-            continue;
-        }
-
-        if (maxProcArg == NULL)
-        {
-            maxProcArg = token;
-            continue;
-        }
-
-        fprintf(FD_STDERR, "test_process accepts exactly one parameter\n");
-        exitProcess(1);
-    }
-
-    if (maxProcArg == NULL)
+    if (argc < 2 || argv == NULL || argv[1] == NULL)
     {
         fprintf(FD_STDERR, "Usage: test_process <max_processes>\n");
         exitProcess(1);
     }
 
-    char *args[] = {maxProcArg, NULL};
+    if (argc > 2 && argv[2] != NULL)
+    {
+        fprintf(FD_STDERR, "test_process accepts exactly one parameter\n");
+        exitProcess(1);
+    }
+
+    char *args[] = {argv[1], NULL};
     int64_t result = test_processes(1, args);
 
     if (result != 0)

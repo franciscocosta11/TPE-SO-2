@@ -257,7 +257,12 @@ int32_t sys_get_processes(ProcessInfo *userBuffer, uint64_t capacity) {
 }
 
 int32_t sys_kill_process(int32_t pid) {
-	return killProcess(pid);
+	Process *target = getProcessByPid(pid);
+	if (target == NULL) {
+		return -1;
+	}
+	killProcessTree(pid);
+	return 0;
 }
 
 int32_t sys_toggle_block_process(int32_t pid) {
