@@ -41,14 +41,11 @@ Sistema operativo de 64 bits desarrollado en C y Assembly para arquitectura x86-
 El sistema soporta dos implementaciones de memory manager que se seleccionan en tiempo de compilación:
 
 ```bash
-# Compilar con Naive Memory Manager
-./compile.sh naive
+# Compilar con Page List Memory Manager (por defecto)
+./compile.sh all
 
 # Compilar con Buddy System Memory Manager
 ./compile.sh buddy
-
-# Compilar con configuración por defecto
-./compile.sh all
 ```
 
 ### Ejecutar el Sistema
@@ -64,11 +61,9 @@ Esto abrirá una ventana de QEMU con el sistema operativo iniciado.
 ### Comandos Make
 
 ```bash
-make all      # Compila bootloader, kernel, userland e imagen
-make naive    # Compila todo con Naive Memory Manager
+make all      # Compila bootloader, kernel, userland e imagen con el Page List allocator
 make buddy    # Compila todo con Buddy System
 make clean    # Elimina archivos compilados
-make status   # Muestra qué memory manager está configurado
 ```
 
 ---
@@ -158,10 +153,11 @@ Estos comandos pueden usarse en pipes y soportan ejecución en background con `&
 
 Dos implementaciones intercambiables mediante flag de compilación:
 
-#### Naive Memory Manager
-- **Estrategia**: Bitmap para tracking de bloques libres/ocupados
-- **Ventaja**: Implementación simple y rápida
-- **Desventaja**: Fragmentación externa
+#### Page List Memory Manager
+- **Estrategia**: Lista enlazada de páginas de 4KB que se asignan/reutilizan como unidades atómicas
+- **Ventaja**: Sobrecosto mínimo y asignaciones con tiempo constante manteniendo el seguimiento a nivel de página
+- **Desventaja**: Fragmentación interna para pedidos más pequeños que una página completa
+- **Build**: Es la opción por defecto compilada con `./compile.sh all` o `make all`
 
 #### Buddy System
 - **Estrategia**: Bloques en potencias de 2 con división/fusión
@@ -531,7 +527,7 @@ TPE-SO-2/
 │   ├── semaphore.c       # Semáforos
 │   ├── pipe.c            # Pipes
 │   ├── ipc.c             # IPC
-│   ├── MemoryManager.c   # Memory manager Naive
+│   ├── MemoryManager.c   # Page List allocator
 │   ├── buddyMemoryManager.c  # Buddy system
 │   └── drivers/          # Drivers (teclado, video, sonido, tiempo)
 ├── Userland/
