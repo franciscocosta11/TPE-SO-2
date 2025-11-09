@@ -75,6 +75,8 @@ extern int currentPid;
  *   - Next: enlace simple para colas READY.
  *   - Entry/Arg: punto de entrada y argumento inicial del proceso.
  */
+typedef void (*ProcessEntryPoint)(uint64_t argc, char **argv);
+
 typedef struct Process
 {
     int pid;            // identificador del proceso
@@ -88,7 +90,7 @@ typedef struct Process
     bool isForeground;
     struct Process *next; // siguiente en la lista
     int waiterPid;
-    void (*entry)(void *); // entry point
+    ProcessEntryPoint entry; // entry point
     char **Arg;             // argumento inicial
     File *fdTable[MAX_FD];
 } Process;
@@ -104,21 +106,30 @@ extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos
 void initProcessSystem(void);
 
 /**
- * @brief Crea un nuevo proceso y lo deja listo para ser scheduleado.
+ * @brief Crea un nuevo proceso y lo agrega a la cola READY.
  *
- * @param Entry      Puntero a la función que el proceso ejecutará.
- * @param Arg        Argumento que se pasará a Entry al arrancar.
- * @param StackBase  Dirección de memoria reservada para el stack del proceso.
- * @param StackSize  Tamaño en bytes del stack apuntado por StackBase.
- * @return Puntero al `Process` creado, o NULL en caso de error (p.ej. sin
- *         slots libres o stack inválido).
+ * Se reserva un stack (si StackBase es NULL se toma del heap), se inicializa
+ * el PCB y se heredan los descriptores del proceso padre.
+ *
+ * @param name Nombre descriptivo usado por ps.
+ * @param Entry Punto de entrada que ejecutará el proceso.
+ * @param Argv Vector de argumentos terminado en NULL.
+ * @param Argc Cantidad de argumentos de Argv.
+ * @param StackBase Stack preasignado o NULL para que lo reserve el kernel.
+ * @param StackSize Tamaño del stack si StackBase no es NULL.
+ * @param priority Prioridad inicial (0..3).
+ * @param isForeground Indica si bloquea a la shell al ejecutarse.
+ * @return Puntero al PCB creado o NULL si no hay recursos.
  */
-Process *createProcess(char* name, void (*Entry)(void *), char **Argv, int Argc ,void *StackBase, size_t StackSize, int priority, bool isForeground);
+Process *createProcess(char* name, ProcessEntryPoint Entry, char **Argv, int Argc ,void *StackBase, size_t StackSize, int priority, bool isForeground);
 
 /**
- * @brief Termina el proceso actual con el código de salida indicado.
+ * @brief Termina el proceso actual con el código indicado.
  *
- * @param ExitCode Código numérico de salida del proceso.
+ * Libera recursos asociados, despierta a su waiter (si existe) y marca al
+ * proceso como TERMINATED.
+ *
+ * @param ExitCode Código de salida reportado al proceso que espera.
  */
 void exitCurrentProcess(int ExitCode);
 

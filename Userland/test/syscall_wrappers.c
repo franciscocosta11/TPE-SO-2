@@ -10,7 +10,7 @@ int64_t my_getpid(void) {
     return getPid();
 }
 
-int64_t my_create_process(const char *name, void (*entry)(void *), char **argv, uint32_t argc) {
+int64_t my_create_process(const char *name, void (*entry)(uint64_t, char **), char **argv, uint32_t argc) {
     if (entry == NULL) {
         return -1;
     }

@@ -341,7 +341,7 @@ static int mvar_start(int numWriters, int numReaders) {
         writerNames[i][2] = 'A' + i;
         writerNames[i][3] = '\0';
 
-        int pid = createProcess(writerNames[i], (void (*)(void *))mvar_writer_entry, (char **)&writerArgs[i], 0, NULL, 0, 0, 0);
+        int pid = createProcess(writerNames[i], mvar_writer_entry, (char **)&writerArgs[i], 0, NULL, 0, 0, 0);
         if (pid > 0) {
             activeWriterPids[activeWriters++] = pid;
         } else {
@@ -364,7 +364,7 @@ static int mvar_start(int numWriters, int numReaders) {
         readerNames[i][2] = '0' + i;
         readerNames[i][3] = '\0';
 
-        int pid = createProcess(readerNames[i], (void (*)(void *))mvar_reader_entry, (char **)&readerArgs[i], 0, NULL, 0, 0, 0);
+        int pid = createProcess(readerNames[i], mvar_reader_entry, (char **)&readerArgs[i], 0, NULL, 0, 0, 0);
         if (pid > 0) {
             activeReaderPids[activeReaders++] = pid;
         } else {

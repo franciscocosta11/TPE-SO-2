@@ -1,11 +1,14 @@
-#ifndef _SYS_H_
-#define _SYS_H_
+#ifndef LIBSYS_SYS_H
+#define LIBSYS_SYS_H
 
-#include <stdint.h>
 #include <process_info.h>
+#include <stdint.h>
 
-// Enum of registerable keys.
-// Note: Does not include TAB or RETURN
+/**
+ * @brief Scancodes admitidos para registrar callbacks personalizados.
+ *
+ * No incluye teclas de control como TAB o RETURN que se manejan internamente.
+ */
 enum REGISTERABLE_KEYS {
     ESCAPE_KEY        = 0x01,
     KEY_1             = 0x02,
@@ -94,60 +97,358 @@ enum REGISTERABLE_KEYS {
     F12_KEY           = 0x58
 };
 
+/**
+ * @brief Inicia un beep en la frecuencia indicada.
+ *
+ * @param nFrequence Frecuencia en Hertz.
+ */
 void startBeep(uint32_t nFrequence);
+
+/**
+ * @brief Detiene cualquier beep en curso.
+ */
 void stopBeep(void);
+
+/**
+ * @brief Cambia el color de texto usado por consola.
+ *
+ * @param color Código de color ARGB/ANSI según configuración.
+ */
 void setTextColor(uint32_t color);
+
+/**
+ * @brief Cambia el color de fondo de la consola.
+ *
+ * @param color Código de color ARGB/ANSI según configuración.
+ */
 void setBackgroundColor(uint32_t color);
+
+/**
+ * @brief Incrementa la fuente en una unidad y devuelve el nuevo tamaño.
+ *
+ * @return Tamaño de fuente resultante.
+ */
 uint8_t increaseFontSize(void);
+
+/**
+ * @brief Reduce la fuente en una unidad y devuelve el nuevo tamaño.
+ *
+ * @return Tamaño de fuente resultante.
+ */
 uint8_t decreaseFontSize(void);
+
+/**
+ * @brief Fija el tamaño de fuente al valor indicado.
+ *
+ * @param size Nueva altura de caracteres.
+ * @return Tamaño efectivo aplicado (puede saturar por límites).
+ */
 uint8_t setFontSize(uint8_t size);
-void getDate(int * hour, int * minute, int * second);
+
+/**
+ * @brief Obtiene la hora actual directamente desde el RTC.
+ *
+ * @param hour Puntero donde se almacenará la hora.
+ * @param minute Puntero para los minutos.
+ * @param second Puntero para los segundos.
+ */
+void getDate(int *hour, int *minute, int *second);
+
+/**
+ * @brief Limpia el contenido de la pantalla.
+ */
 void clearScreen(void);
 
-
+/**
+ * @brief Dibuja un círculo sólido en el buffer de video.
+ *
+ * @param color Color en formato hexadecimal.
+ * @param topleftX Coordenada X del bounding box.
+ * @param topLefyY Coordenada Y del bounding box.
+ * @param diameter Diámetro del círculo.
+ */
 void drawCircle(uint32_t color, long long int topleftX, long long int topLefyY, long long int diameter);
+
+/**
+ * @brief Dibuja un rectángulo sólido sobre el buffer de video.
+ *
+ * @param color Color de relleno.
+ * @param width_pixels Ancho en píxeles.
+ * @param height_pixels Alto en píxeles.
+ * @param initial_pos_x Coordenada X del vértice superior izquierdo.
+ * @param initial_pos_y Coordenada Y del vértice superior izquierdo.
+ */
 void drawRectangle(uint32_t color, long long int width_pixels, long long int height_pixels, long long int initial_pos_x, long long int initial_pos_y);
+
+/**
+ * @brief Rellena la memoria de video completa con un color plano.
+ *
+ * @param hexColor Color en formato hexadecimal.
+ */
 void fillVideoMemory(uint32_t hexColor);
+
+/**
+ * @brief Ejecuta una rutina del kernel y devuelve su resultado.
+ *
+ * @param fnPtr Puntero a función sin argumentos.
+ * @return Resultado de la ejecución.
+ */
 int32_t exec(int32_t (*fnPtr)(void));
+
+/**
+ * @brief Alias histórico de @ref exec mantenido por compatibilidad.
+ */
 int32_t execProgram(int32_t (*fnPtr)(void));
+
+/**
+ * @brief Registra un handler para una tecla especial.
+ *
+ * @param scancode Tecla a monitorear.
+ * @param fn Callback a invocar cuando se presione la tecla.
+ */
 void registerKey(enum REGISTERABLE_KEYS scancode, void (*fn)(enum REGISTERABLE_KEYS scancode));
+
+/**
+ * @brief Registra un handler para combinaciones con Ctrl.
+ *
+ * @param scancode Tecla a monitorear junto con Ctrl.
+ * @param fn Callback ejecutado cuando la combinación se dispara.
+ */
 void registerControlKey(enum REGISTERABLE_KEYS scancode, void (*fn)(enum REGISTERABLE_KEYS scancode));
+
+/**
+ * @brief Vacía el buffer circular de entrada de teclado.
+ */
 void clearInputBuffer(void);
+
+/**
+ * @brief Devuelve el ancho actual de la ventana gráfica.
+ *
+ * @return Ancho en píxeles.
+ */
 int getWindowWidth(void);
+
+/**
+ * @brief Devuelve la altura actual de la ventana gráfica.
+ *
+ * @return Alto en píxeles.
+ */
 int getWindowHeight(void);
+
+/**
+ * @brief Suspende el proceso actual cierta cantidad de milisegundos.
+ *
+ * @param milliseconds Tiempo a dormir.
+ */
 void sleep(uint32_t milliseconds);
-int32_t getRegisterSnapshot(int64_t * registers);
+
+/**
+ * @brief Copia el último snapshot de registros tomado por el kernel.
+ *
+ * @param registers Buffer destino con espacio para todos los registros.
+ * @return 0 en éxito o negativo si no hay snapshot disponible.
+ */
+int32_t getRegisterSnapshot(int64_t *registers);
+
+/**
+ * @brief Obtiene un carácter de teclado sin eco en pantalla.
+ *
+ * @return Código ASCII leído o negativo en error.
+ */
 int32_t getCharacterWithoutDisplay(void);
+
+/**
+ * @brief Llena @p buffer con información de procesos activos.
+ *
+ * @param buffer Arreglo de @ref ProcessInfo.
+ * @param capacity Cantidad máxima de entradas.
+ * @return Número de procesos copiados o negativo si falló.
+ */
 int32_t getProcesses(ProcessInfo *buffer, uint64_t capacity);
+
+/**
+ * @brief Solicita la terminación del proceso indicado.
+ *
+ * @param pid Identificador del proceso objetivo.
+ * @return 0 en éxito o código de error.
+ */
 int32_t killProcess(int32_t pid);
+
+/**
+ * @brief Alterna el estado READY/BLOCKED del PID dado.
+ *
+ * @param pid Identificador del proceso.
+ * @return Nuevo estado o negativo si no existe.
+ */
 int32_t toggleBlockProcess(int32_t pid);
+
+/**
+ * @brief Obtiene un resumen textual del uso de memoria.
+ *
+ * @param buffer Destino donde se escribe la descripción.
+ * @param capacity Tamanio máximo del buffer.
+ * @return Bytes escritos o negativo si no alcanza el espacio.
+ */
 int32_t getMemoryState(char *buffer, uint64_t capacity);
+
+/**
+ * @brief Modifica la prioridad de planificación del proceso.
+ *
+ * @param pid Proceso a ajustar.
+ * @param priority Nuevo nivel de prioridad.
+ * @return Prioridad previa o negativo en error.
+ */
 int32_t setProcessPriority(int32_t pid, int32_t priority);
-int32_t createProcess(char* name, void (*entry)(void *), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, uint8_t priority, uint8_t isForeground);
+
+/**
+ * @brief Crea un nuevo proceso con la configuración indicada.
+ *
+ * @param name Nombre lógico mostrado en herramientas como `ps`.
+ * @param entry Entrada principal del proceso.
+ * @param argv Vector de argumentos.
+ * @param argc Cantidad de argumentos válidos.
+ * @param stackBase Stack opcional provisto por el llamador.
+ * @param stackSize Tamaño del stack personalizado.
+ * @param priority Prioridad inicial.
+ * @param isForeground Si es distinto de cero, se trata como proceso en foreground.
+ * @return PID del nuevo proceso o negativo en caso de error.
+ */
+int32_t createProcess(char *name, void (*entry)(uint64_t, char **), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, uint8_t priority, uint8_t isForeground);
+
+/**
+ * @brief Bloquea hasta que el proceso indicado finalice.
+ *
+ * @param pid Identificador del proceso hijo.
+ * @return Código de retorno del proceso esperado o negativo si falló.
+ */
 int32_t waitProcess(int32_t pid);
+
+/**
+ * @brief Termina el proceso actual con código de salida.
+ *
+ * @param code Valor que verán los que esperen con @ref waitProcess.
+ */
 void exitProcess(int32_t code);
+
+/**
+ * @brief Obtiene el PID del proceso actualmente en ejecución.
+ *
+ * @return Identificador único del proceso.
+ */
 int32_t getPid(void);
+
+/**
+ * @brief Desbloquea manualmente al proceso indicado.
+ *
+ * @param pid Proceso objetivo.
+ * @return 0 si fue desbloqueado o negativo si no estaba bloqueado.
+ */
 int32_t unblockProcess(int32_t pid);
+
+/**
+ * @brief Solicita al scheduler ceder voluntariamente la CPU.
+ *
+ * @return 0 cuando el yield se procesa correctamente.
+ */
 int32_t yieldProcess(void);
 
-// IPC / File descriptor helpers
-// Dummy-backed for now (return -1) until kernel implements them
+/**
+ * @brief Cierra el descriptor indicado.
+ *
+ * @param fd File descriptor válido.
+ * @return 0 en éxito o negativo si el descriptor es inválido.
+ */
 int32_t close(int32_t fd);
+
+/**
+ * @brief Crea un pipe y devuelve sus extremos.
+ *
+ * @param pipefd Arreglo de dos posiciones donde se escribirán [lectura, escritura].
+ * @return 0 en éxito o código de error.
+ */
 int32_t pipe(int32_t pipefd[2]);
+
+/**
+ * @brief Redirecciona `newfd` al mismo recurso que `oldfd`.
+ *
+ * @param oldfd Descriptor original.
+ * @param newfd Descriptor que pasará a apuntar al mismo recurso.
+ * @return Descriptor resultante o negativo en error.
+ */
 int32_t dup2(int32_t oldfd, int32_t newfd);
 
-// Semaphore functions
+/**
+ * @brief Crea un semáforo identificado por nombre.
+ *
+ * @param name Etiqueta simbólica del semáforo.
+ * @param initialValue Valor inicial del contador.
+ * @return ID del semáforo o negativo si falló.
+ */
 int32_t semCreate(const char *name, uint32_t initialValue);
+
+/**
+ * @brief Abre un semáforo ya existente.
+ *
+ * @param name Nombre lógico del semáforo.
+ * @return ID válido o negativo si no existe.
+ */
 int32_t semOpen(const char *name);
+
+/**
+ * @brief Cierra (decrementa la refcount) del semáforo indicado.
+ *
+ * @param semId Identificador retornado por create/open.
+ * @return 0 en éxito o negativo si la ID no es válida.
+ */
 int32_t semClose(int32_t semId);
+
+/**
+ * @brief Operación P: decrementa y bloquea si el valor es negativo.
+ *
+ * @param semId Identificador del semáforo.
+ * @return Valor restante o negativo en error.
+ */
 int32_t semWait(int32_t semId);
+
+/**
+ * @brief Operación V: incrementa y desbloquea si corresponde.
+ *
+ * @param semId Identificador del semáforo.
+ * @return Valor actualizado o negativo en error.
+ */
 int32_t semPost(int32_t semId);
+
+/**
+ * @brief Obtiene el valor actual del semáforo.
+ *
+ * @param semId Identificador del semáforo.
+ * @return Contador vigente o negativo si la ID no es válida.
+ */
 int32_t semGetValue(int32_t semId);
+
+/**
+ * @brief Restablece el semáforo a un nuevo valor y limpia bloqueados.
+ *
+ * @param semId Identificador objetivo.
+ * @param newValue Valor a asignar.
+ * @return 0 en éxito o negativo si la ID no existe.
+ */
 int32_t semReset(int32_t semId, uint32_t newValue);
 
-// Semaphore testing functions
+/**
+ * @brief Marca que se ingresó a una sección crítica de test.
+ */
 void semEnterCriticalTest(void);
-void semLeaveCriticalTest(void);
-int32_t semGetCriticalCount(void);
 
-#endif
+/**
+ * @brief Marca la salida de la sección crítica usada en tests.
+ */
+void semLeaveCriticalTest(void);
+
+/**
+ * @brief Devuelve cuántos procesos se reportaron dentro del test crítico.
+ *
+ * @return Número de procesos simultáneos registrados.
+ */
+int32_t semGetCriticalCount(void);
+#endif // LIBSYS_SYS_H

@@ -1,14 +1,16 @@
 #include "wc.h"
 #include <syscalls.h>
 #include "./../libc/stdio.h"
+#include <stdint.h>
 
 #define FD_STDIN 0
 #define FD_STDOUT 1
 #define FD_STDERR 2
 
-void wc_entry(void *arg)
+void wc_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     
     char buf[1];
     int lineCount = 0;

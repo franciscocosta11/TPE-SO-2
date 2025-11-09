@@ -43,7 +43,7 @@ void initProcessSystem(void)
     initScheduler();
 }
 
-Process *createProcess(char *name, void (*Entry)(void *), char **Argv, int Argc, void *StackBase, size_t StackSize, int priority, bool isForeground)
+Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Argc, void *StackBase, size_t StackSize, int priority, bool isForeground)
 {
     if (Entry == NULL)
         return NULL;

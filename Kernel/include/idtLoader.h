@@ -6,6 +6,9 @@
 #include <defs.h>
 #include <interrupts.h>
 
-void load_idt();
+/**
+ * @brief Carga la tabla IDT configurada en memoria mediante lidt.
+ */
+void load_idt(void);
 
 #endif

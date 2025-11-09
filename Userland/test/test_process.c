@@ -5,8 +5,9 @@
 
 #define PROCESS_SNAPSHOT_CAP 64
 
-static void endless_loop_entry(void *arg) {
-  (void)arg;
+static void endless_loop_entry(uint64_t argc, char **argv) {
+  (void)argc;
+  (void)argv;
   endless_loop();
 }
 

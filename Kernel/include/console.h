@@ -3,11 +3,17 @@
 
 #include "ipc.h"
 
-// Create File objects backed by the console device
-// Caller owns the returned pointer and should free it when closing
-// (for now consoleClose does nothing; freeing is managed by the owner)
+/**
+ * @brief Crea un File* para leer desde la consola (stdin).
+ */
 File *createConsoleIn(void);
+/**
+ * @brief Crea un File* para escribir en la consola (stdout).
+ */
 File *createConsoleOut(void);
+/**
+ * @brief Crea un File* para escribir errores en la consola (stderr).
+ */
 File *createConsoleErr(void);
 
 #endif // CONSOLE_H

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <keyboard.h>
+#include <process.h>
 #include <process_info.h>
 #include <string.h>
 
