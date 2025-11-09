@@ -184,44 +184,44 @@ typedef struct
     int (*builtin)(void);        // used when isProcess == 0
     void (*entry)(uint64_t, char **);        // used when isProcess == 1
     char *description;
+    uint8_t showInHelp;
 } Command;
 
 /* All available commands. Sorted alphabetically by their name */
 Command commands[] = {
-    {.name = "block",   .isProcess = 0, .builtin = block,      .entry = 0,             .description = "Toggles a process between BLOCKED and READY"},
-    {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = cat_entry, .description = "Echo stdin to stdout until EOF"},
-    {.name = "clear",   .isProcess = 0, .builtin = clear,      .entry = 0,             .description = "Clears the screen"},
-    {.name = "divzero", .isProcess = 0, .builtin = divzero_cmd, .entry = 0,             .description = "Generates a division by zero exception"},
-    {.name = "echo",    .isProcess = 1, .builtin = 0,          .entry = echo_entry,    .description = "Prints arguments to stdout"},
-    {.name = "exit",    .isProcess = 0, .builtin = exit,       .entry = 0,             .description = "Command exits w/ the provided exit code or 0"},
-    {.name = "filter",  .isProcess = 1, .builtin = 0,          .entry = filter_entry, .description = "Filter vowels from stdin"},
-    {.name = "font",    .isProcess = 0, .builtin = font,       .entry = 0,             .description = "Increases or decreases the font size.\n\t\t\t\tUse:\n\t\t\t\t\t  + font increase\n\t\t\t\t\t  + font decrease"},
-    {.name = "help",    .isProcess = 0, .builtin = help,       .entry = 0,             .description = "Prints the available commands"},
-    {.name = "history", .isProcess = 0, .builtin = history,    .entry = 0,             .description = "Prints the command history"},
-    {.name = "invop",   .isProcess = 0, .builtin = invop_cmd,  .entry = 0,             .description = "Generates an invalid Opcode exception"},
-    {.name = "kill",    .isProcess = 0, .builtin = killcmd,    .entry = 0,             .description = "Kills a process by PID"},
-    {.name = "loop",    .isProcess = 1, .builtin = 0,          .entry = loop_entry,    .description = "Prints PID with greeting every N seconds (default: 1). Usage: loop [seconds]"},
-    {.name = "man",     .isProcess = 0, .builtin = man,        .entry = 0,             .description = "Prints the description of the provided command"},
-    {.name = "mem",     .isProcess = 0, .builtin = memcmd,     .entry = 0,             .description = "Displays kernel memory usage"},
-    {.name = "mvar",    .isProcess = 0, .builtin = mvar_cmd,   .entry = 0,             .description = "Multi-variable synchronization test. Usage: mvar <writers> <readers>"},
-    {.name = "nice",    .isProcess = 0, .builtin = nice,       .entry = 0,             .description = "Changes a process priority"},
-    {.name = "ps",      .isProcess = 1, .builtin = 0,          .entry = ps_entry,      .description = "Prints the process list"},
-    {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0,             .description = "Prints the register snapshot, if any"},
-    {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0,       .description = "Stress tests memory manager with random blocks. Usage: test_mm <max_bytes>"},
-    {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0,   .description = "Tests process priorities. Usage: test_prio <max_iterations>"},
-    {.name = "test_process", .isProcess = 1, .builtin = 0, .entry = test_process_entry, .description = "Creates, blocks and kills processes randomly. Usage: test_process <max_processes>"},
-    {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0,    .description = "Tests semaphores. Usage: test_sync <n> <use_sem> (0=no sync, 1=with sync)"},
-    {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0,             .description = "Prints the current time"},
-    {.name = "wc",      .isProcess = 1, .builtin = 0,          .entry = wc_entry, .description = "Count lines from stdin"},
-    {.name = "yield",   .isProcess = 0, .builtin = yield_cmd,  .entry = 0,             .description = "Voluntarily yields the CPU"},
-    // Process-style command example (entry must call sys_exit)
-    {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Runs a foreground process that sleeps 2 seconds"},
-    {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Prints a line 3 times and exits"},
-    {.name = "pipe_demo", .isProcess = 0, .builtin = pipe_demo, .entry = 0,             .description = "Demonstrates a simple pipe between two processes"},
-    {.name = "pipe_eof", .isProcess = 0, .builtin = pipe_eof_cmd, .entry = 0,           .description = "Shows EOF when writer closes"},
-    {.name = "pipe_broken", .isProcess = 0, .builtin = pipe_broken_cmd, .entry = 0,     .description = "Shows broken pipe when no readers"},
-    {.name = "pipe_sync", .isProcess = 0, .builtin = pipe_sync_cmd, .entry = 0,         .description = "Tests pipe blocking/sync: writer blocks when full, reader when empty"},
-    {.name = "pipe_stress", .isProcess = 0, .builtin = pipe_stress_cmd, .entry = 0,     .description = "Stress test with multiple writers/readers. Usage: pipe_stress [numWriters] [numReaders]"},
+    {.name = "block",   .isProcess = 0, .builtin = block,      .entry = 0, .description = "Toggle process between ready and blocked", .showInHelp = 1},
+    {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = cat_entry, .description = "Copy stdin to stdout until EOF", .showInHelp = 1},
+    {.name = "clear",   .isProcess = 0, .builtin = clear,      .entry = 0, .description = "Clear the screen", .showInHelp = 1},
+    {.name = "divzero", .isProcess = 0, .builtin = divzero_cmd, .entry = 0, .description = "Generate division-by-zero exception", .showInHelp = 0},
+    {.name = "echo",    .isProcess = 1, .builtin = 0,          .entry = echo_entry,    .description = "Print arguments to stdout", .showInHelp = 0},
+    {.name = "exit",    .isProcess = 0, .builtin = exit,       .entry = 0, .description = "Exit shell (optional code)", .showInHelp = 1},
+    {.name = "filter",  .isProcess = 1, .builtin = 0,          .entry = filter_entry, .description = "Remove vowels from stdin", .showInHelp = 1},
+    {.name = "font",    .isProcess = 0, .builtin = font,       .entry = 0, .description = "Adjust font size", .showInHelp = 0},
+    {.name = "help",    .isProcess = 0, .builtin = help,       .entry = 0, .description = "Show this command list", .showInHelp = 1},
+    {.name = "history", .isProcess = 0, .builtin = history,    .entry = 0, .description = "Show previous commands", .showInHelp = 1},
+    {.name = "invop",   .isProcess = 0, .builtin = invop_cmd,  .entry = 0, .description = "Generate invalid opcode exception", .showInHelp = 0},
+    {.name = "kill",    .isProcess = 0, .builtin = killcmd,    .entry = 0, .description = "Kill a process by PID", .showInHelp = 1},
+    {.name = "loop",    .isProcess = 1, .builtin = 0,          .entry = loop_entry,    .description = "Print PID and greeting every N seconds", .showInHelp = 1},
+    {.name = "man",     .isProcess = 0, .builtin = man,        .entry = 0, .description = "Describe another command", .showInHelp = 0},
+    {.name = "mem",     .isProcess = 0, .builtin = memcmd,     .entry = 0, .description = "Show kernel memory state", .showInHelp = 1},
+    {.name = "mvar",    .isProcess = 0, .builtin = mvar_cmd,   .entry = 0, .description = "Multi-writer/multi-reader sync demo", .showInHelp = 1},
+    {.name = "nice",    .isProcess = 0, .builtin = nice,       .entry = 0, .description = "Change a process priority", .showInHelp = 1},
+    {.name = "ps",      .isProcess = 1, .builtin = 0,          .entry = ps_entry,      .description = "List processes and state", .showInHelp = 1},
+    {.name = "regs",    .isProcess = 0, .builtin = regs,       .entry = 0, .description = "Print register snapshot", .showInHelp = 0},
+    {.name = "test_mm", .isProcess = 0, .builtin = test_mm_command, .entry = 0, .description = "Stress memory manager (test_mm <bytes>)", .showInHelp = 1},
+    {.name = "test_prio", .isProcess = 0, .builtin = test_prio_command, .entry = 0, .description = "Stress scheduler priorities (test_prio <iters>)", .showInHelp = 1},
+    {.name = "test_process", .isProcess = 1, .builtin = 0, .entry = test_process_entry, .description = "Create/block/kill processes randomly", .showInHelp = 1},
+    {.name = "test_sync", .isProcess = 0, .builtin = test_sync_command, .entry = 0, .description = "Semaphore test (test_sync <n> <0|1>)", .showInHelp = 1},
+    {.name = "time",    .isProcess = 0, .builtin = time,       .entry = 0, .description = "Show current time", .showInHelp = 0},
+    {.name = "wc",      .isProcess = 1, .builtin = 0,          .entry = wc_entry, .description = "Count newline-delimited records", .showInHelp = 1},
+    {.name = "yield",   .isProcess = 0, .builtin = yield_cmd,  .entry = 0, .description = "Voluntarily yield the CPU", .showInHelp = 0},
+    {.name = "sleep2",  .isProcess = 1, .builtin = 0,          .entry = sleep2_sleeper, .description = "Foreground sleeper example", .showInHelp = 0},
+    {.name = "print3",  .isProcess = 1, .builtin = 0,          .entry = print3_entry,   .description = "Print three lines and exit", .showInHelp = 0},
+    {.name = "pipe_demo", .isProcess = 0, .builtin = pipe_demo, .entry = 0, .description = "Producer | consumer pipe example", .showInHelp = 1},
+    {.name = "pipe_eof", .isProcess = 0, .builtin = pipe_eof_cmd, .entry = 0, .description = "Reader hits EOF when writer closes", .showInHelp = 1},
+    {.name = "pipe_broken", .isProcess = 0, .builtin = pipe_broken_cmd, .entry = 0, .description = "Writer observes broken pipe with no readers", .showInHelp = 1},
+    {.name = "pipe_sync", .isProcess = 0, .builtin = pipe_sync_cmd, .entry = 0, .description = "Demonstrate pipe blocking behavior", .showInHelp = 1},
+    {.name = "pipe_stress", .isProcess = 0, .builtin = pipe_stress_cmd, .entry = 0, .description = "Stress multiple readers/writers on one pipe", .showInHelp = 1},
 };
 
 char command_history[HISTORY_SIZE][MAX_BUFFER_SIZE] = {0};
@@ -878,14 +878,76 @@ int echo(void)
     return 0;
 }
 
+static void printPadded(const char *text, int width)
+{
+    if (text == NULL)
+    {
+        text = "";
+    }
+    int len = (int)strlen(text);
+    for (int i = 0; i < len; i++)
+    {
+        putchar(text[i]);
+    }
+    for (int i = len; i < width; i++)
+    {
+        putchar(' ');
+    }
+}
+
+#define HELP_DESC_MAX 64
+
+static void printTruncated(const char *text)
+{
+    if (text == NULL)
+    {
+        return;
+    }
+
+    for (int i = 0; text[i] != '\0' && i < HELP_DESC_MAX; i++)
+    {
+        putchar(text[i]);
+    }
+}
+
+static void printHelpEntryLine(const Command *cmd, int maxNameLen)
+{
+    printf("  ");
+    printPadded(cmd->name, maxNameLen);
+    printf(" - ");
+    printTruncated(cmd->description);
+    putchar('\n');
+}
+
 int help(void)
 {
-    printf("Available commands:\n");
-    for (int i = 0; i < sizeof(commands) / sizeof(Command); i++)
+    int maxNameLen = 0;
+    int visibleCount = 0;
+    const int totalCommands = (int)(sizeof(commands) / sizeof(Command));
+    for (int i = 0; i < totalCommands; i++)
     {
-        printf("%s%s\t ---\t%s\n", commands[i].name, strlen(commands[i].name) < 4 ? "\t" : "", commands[i].description);
+        if (!commands[i].showInHelp)
+        {
+            continue;
+        }
+        visibleCount++;
+        int len = (int)strlen(commands[i].name);
+        if (len > maxNameLen)
+        {
+            maxNameLen = len;
+        }
     }
-    printf("\n");
+
+    printf("Available commands (%d):\n", visibleCount);
+    for (int i = 0; i < totalCommands; i++)
+    {
+        if (!commands[i].showInHelp)
+        {
+            continue;
+        }
+        printHelpEntryLine(&commands[i], maxNameLen);
+    }
+    putchar('\n');
     return 0;
 }
 
