@@ -35,7 +35,7 @@ typedef struct
     char *name;
     uint8_t isProcess;           /* 0 = builtin, 1 = process */
     int (*builtin)(void);
-    void (*entry)(void *);
+    void (*entry)(uint64_t, char **);
     char *description;
 } Command;
 

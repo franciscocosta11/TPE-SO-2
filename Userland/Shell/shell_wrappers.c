@@ -48,18 +48,18 @@ static TestMmSlot *test_mm_acquire_slot(void);
 static TestMmSlot *test_mm_find_slot_by_argv(char **argv);
 static void test_mm_entry(uint64_t argc, char **argv);
 static void test_prio_entry(uint64_t argc, char **argv);
-static void test_process_entry(void *arg);
-static void sleep2_sleeper(void *arg);
-static void print3_entry(void *arg);
-static void ps_entry(void *arg);
-static void loop_entry(void *arg);
-static void pipe_producer_entry(void *arg);
-static void pipe_consumer_entry(void *arg);
-static void pipe_broken_writer_entry(void *arg);
-static void pipeSyncWriter(void *arg);
-static void pipeSyncReader(void *arg);
-static void pipeStressWriter(void *arg);
-static void pipeStressReader(void *arg);
+static void test_process_entry(uint64_t argc, char **argv);
+static void sleep2_sleeper(uint64_t argc, char **argv);
+static void print3_entry(uint64_t argc, char **argv);
+static void ps_entry(uint64_t argc, char **argv);
+static void loop_entry(uint64_t argc, char **argv);
+static void pipe_producer_entry(uint64_t argc, char **argv);
+static void pipe_consumer_entry(uint64_t argc, char **argv);
+static void pipe_broken_writer_entry(uint64_t argc, char **argv);
+static void pipeSyncWriter(uint64_t argc, char **argv);
+static void pipeSyncReader(uint64_t argc, char **argv);
+static void pipeStressWriter(uint64_t argc, char **argv);
+static void pipeStressReader(uint64_t argc, char **argv);
 
 static int divzero_cmd(void);
 static int invop_cmd(void);
@@ -99,7 +99,7 @@ Command commands[] = {
     {.name = "cat",     .isProcess = 1, .builtin = 0,          .entry = cat_entry,     .description = "Echo stdin to stdout until EOF"},
     {.name = "clear",   .isProcess = 0, .builtin = clear,      .entry = 0,             .description = "Clears the screen"},
     {.name = "divzero", .isProcess = 0, .builtin = divzero_cmd, .entry = 0,            .description = "Generates a division by zero exception"},
-    {.name = "echo",    .isProcess = 1, .builtin = 0,          .entry = (void (*)(void *))echo_entry,    .description = "Prints arguments to stdout"},
+    {.name = "echo",    .isProcess = 1, .builtin = 0,          .entry = echo_entry,    .description = "Prints arguments to stdout"},
     {.name = "exit",    .isProcess = 0, .builtin = shell_exit, .entry = 0,             .description = "Command exits w/ the provided exit code or 0"},
     {.name = "filter",  .isProcess = 1, .builtin = 0,          .entry = filter_entry,  .description = "Filter vowels from stdin"},
     {.name = "font",    .isProcess = 0, .builtin = font,       .entry = 0,             .description = "Increase or decrease the font size"},
@@ -331,7 +331,7 @@ static int test_prio_command(void)
     uint8_t runInBackground = getCurrentBuiltinBackground();
 
     testPrioRunning = 1;
-    int pid = createProcess("test_prio", (void (*)(void *))test_prio_entry, testPrioContext.argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
+    int pid = createProcess("test_prio", test_prio_entry, testPrioContext.argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
     if (pid <= 0)
     {
         fprintf(FD_STDERR, "Failed to start test_prio process\n");
@@ -451,7 +451,7 @@ static int test_mm_command(void)
 
     slot->pid = -1;
     uint8_t runInBackground = getCurrentBuiltinBackground();
-    int pid = createProcess("test_mm", (void (*)(void *))test_mm_entry, slot->argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
+    int pid = createProcess("test_mm", test_mm_entry, slot->argv, 1, 0, 0, 0, runInBackground ? 0 : 1);
 
     if (pid <= 0)
     {
@@ -519,9 +519,10 @@ static void test_prio_entry(uint64_t argc, char **argv)
     exitProcess(0);
 }
 
-static void test_process_entry(void *arg)
+static void test_process_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
 
     char *maxProcArg = NULL;
     char *token = NULL;
@@ -549,8 +550,8 @@ static void test_process_entry(void *arg)
         exitProcess(1);
     }
 
-    char *argv[] = {maxProcArg, NULL};
-    int64_t result = test_processes(1, argv);
+    char *args[] = {maxProcArg, NULL};
+    int64_t result = test_processes(1, args);
 
     if (result != 0)
     {
@@ -794,9 +795,10 @@ static int regs(void)
     return 0;
 }
 
-static void loop_entry(void *arg)
+static void loop_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     int pid = getPid();
 
     char *secondsArg = strtok(NULL, " ");
@@ -874,17 +876,19 @@ static int nice(void)
     return 1;
 }
 
-static void sleep2_sleeper(void *arg)
+static void sleep2_sleeper(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     sleep(2000);
     putchar('.');
     exitProcess(0);
 }
 
-static void print3_entry(void *arg)
+static void print3_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     for (int i = 1; i <= 3; i++)
     {
         printf("print3: line %d\n", i);
@@ -892,9 +896,10 @@ static void print3_entry(void *arg)
     exitProcess(0);
 }
 
-static void ps_entry(void *arg)
+static void ps_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     ps();
     exitProcess(0);
 }
@@ -1149,17 +1154,19 @@ static int invop_cmd(void)
     return 0;
 }
 
-static void pipe_producer_entry(void *arg)
+static void pipe_producer_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     const char *msg = "hello through pipe\nline 2\nline 3\n";
     sys_write(FD_STDOUT, msg, (int)strlen(msg));
     exitProcess(0);
 }
 
-static void pipe_consumer_entry(void *arg)
+static void pipe_consumer_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     char buf[1];
     int n;
     while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
@@ -1171,9 +1178,10 @@ static void pipe_consumer_entry(void *arg)
     exitProcess(0);
 }
 
-static void pipe_broken_writer_entry(void *arg)
+static void pipe_broken_writer_entry(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     const char *msg = "x";
     int rc = sys_write(FD_STDOUT, msg, 1);
     if (rc < 0)
@@ -1184,9 +1192,10 @@ static void pipe_broken_writer_entry(void *arg)
     exitProcess(0);
 }
 
-static void pipeSyncWriter(void *arg)
+static void pipeSyncWriter(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     const char *msg = "W";
     int total = 2000;
 
@@ -1202,9 +1211,10 @@ static void pipeSyncWriter(void *arg)
     exitProcess(0);
 }
 
-static void pipeSyncReader(void *arg)
+static void pipeSyncReader(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     char buf[100];
     int totalRead = 0;
     int n;
@@ -1222,9 +1232,10 @@ static void pipeSyncReader(void *arg)
     exitProcess(0);
 }
 
-static void pipeStressWriter(void *arg)
+static void pipeStressWriter(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     int myPid = getPid();
     srand(myPid);
 
@@ -1263,9 +1274,10 @@ static void pipeStressWriter(void *arg)
     exitProcess(0);
 }
 
-static void pipeStressReader(void *arg)
+static void pipeStressReader(uint64_t argc, char **argv)
 {
-    (void)arg;
+    (void)argc;
+    (void)argv;
     int myPid = getPid();
     srand(myPid);
 

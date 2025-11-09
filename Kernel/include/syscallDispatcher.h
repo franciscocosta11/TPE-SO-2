@@ -301,7 +301,7 @@ int32_t sys_set_process_priority(int32_t pid, int32_t priority);
  * @brief Crea un nuevo proceso en el sistema.
  *
  * @param name Nombre identificatorio.
- * @param entry Punto de entrada del proceso.
+ * @param entry Punto de entrada del proceso (tipo ProcessEntryPoint).
  * @param argv Vector de argumentos.
  * @param argc Cantidad de argumentos.
  * @param stackBase Dirección base del stack.
@@ -310,7 +310,7 @@ int32_t sys_set_process_priority(int32_t pid, int32_t priority);
  * @param isForeground Indica si es un proceso de primer plano.
  * @return PID del nuevo proceso o un código negativo si falla.
  */
-int32_t sys_create_process(char* name, void (*entry)(void *), char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, int priority, uint8_t isForeground);
+int32_t sys_create_process(char* name, ProcessEntryPoint entry, char **argv, uint32_t argc, void *stackBase, uint64_t stackSize, int priority, uint8_t isForeground);
 /**
  * @brief Termina la ejecución del proceso actual.
  *
