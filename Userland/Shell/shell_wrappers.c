@@ -783,17 +783,13 @@ static int regs(void)
 
 static void loop_entry(uint64_t argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
     int pid = getPid();
-
-    char *secondsArg = strtok(NULL, " ");
     uint32_t seconds = 1;
 
-    if (secondsArg != NULL)
+    if (argc > 1 && argv[1] != NULL)
     {
         int parsed = 0;
-        if (parsePid(secondsArg, &parsed) == 0 && parsed > 0)
+        if (parsePid(argv[1], &parsed) == 0 && parsed > 0)
         {
             seconds = (uint32_t)parsed;
         }
@@ -806,7 +802,7 @@ static void loop_entry(uint64_t argc, char **argv)
         milliseconds = 2000;
     }
 
-    while (1) //-V776
+    while (1)
     {
         printf("Hola, soy el proceso %d\n", pid);
         sleep(milliseconds);

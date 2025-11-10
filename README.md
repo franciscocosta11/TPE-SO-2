@@ -42,7 +42,7 @@ El sistema soporta dos implementaciones de memory manager que se seleccionan en 
 
 ```bash
 # Compilar con Page List Memory Manager (por defecto)
-./compile.sh all
+./compile.sh
 
 # Compilar con Buddy System Memory Manager
 ./compile.sh buddy
@@ -79,7 +79,6 @@ La shell soporta dos tipos de comandos: **built-ins** que se ejecutan en el cont
 | `help` | Muestra lista de comandos disponibles | `help` |
 | `clear` | Limpia la pantalla | `clear` |
 | `exit` | Cierra la shell | `exit` |
-| `history` | Muestra historial de comandos ejecutados | `history` |
 | `ps` | Lista todos los procesos con su estado | `ps` |
 | `kill <pid>` | Termina un proceso específico | `kill 5` |
 | `block <pid>` | Alterna un proceso entre READY y BLOCKED | `block 7` |
@@ -119,7 +118,7 @@ Estos comandos pueden usarse en pipes y soportan ejecución en background con `&
 
 ### Gestión de Procesos
 
-- **Creación y destrucción**: Syscalls `createProcess()` y `exit()`
+- **Creación y destrucción**: Syscalls `createProcess()`, `exit()` y `kill()`
 - **PIDs únicos**: Asignación secuencial con reciclaje
 - **Estados**: READY, RUNNING, BLOCKED, TERMINATED
 - **Proceso Init** (PID 1): Proceso idle del sistema
@@ -154,17 +153,17 @@ Estos comandos pueden usarse en pipes y soportan ejecución en background con `&
 Dos implementaciones intercambiables mediante flag de compilación:
 
 #### Page List Memory Manager
-- **Estrategia**: Lista enlazada de páginas de 4KB que se asignan/reutilizan como unidades atómicas
+- **Estrategia**: Lista enlazada de páginas de 1KB que se asignan/reutilizan como unidades atómicas
 - **Ventaja**: Sobrecosto mínimo y asignaciones con tiempo constante manteniendo el seguimiento a nivel de página
 - **Desventaja**: Fragmentación interna para pedidos más pequeños que una página completa
-- **Build**: Es la opción por defecto compilada con `./compile.sh all` o `make all`
+- **Build**: Es la opción por defecto compilada con `./compile.sh` o `make all`
 
 #### Buddy System
 - **Estrategia**: Bloques en potencias de 2 con división/fusión
 - **Ventaja**: Reduce fragmentación, fusión eficiente
 - **Desventaja**: Fragmentación interna (desperdicio en bloques grandes)
 
-**Syscalls**: `malloc()`, `free()`, `mem_info()`
+**Syscalls**: `sys_alloc_memory()`, `sys_free_memory()`, `sys_get_memory_state()`
 
 ---
 
@@ -305,14 +304,12 @@ La shell soporta los siguientes atajos:
 
 | Atajo | Función |
 |-------|---------|
-| `↑` (Flecha Arriba) | Navega al comando anterior en el historial |
-| `↓` (Flecha Abajo) | Navega al comando siguiente en el historial |
 | `Enter` | Ejecuta el comando actual |
 | `Backspace` | Borra el carácter anterior |
 | `Ctrl + C` | Interrumpe el proceso en foreground (si el kernel lo soporta) |
+| `Ctrl + D` | Envía EOF |
 
 **Notas:**
-- El historial almacena los últimos 10 comandos
 - Las flechas solo funcionan cuando hay historial disponible
 - Los caracteres especiales y mayúsculas se obtienen con Shift
 
@@ -405,7 +402,7 @@ ps
 
 ### Pipes
 
-**Decisión**: Buffer circular de tamaño fijo (4KB)
+**Decisión**: Buffer circular de tamaño fijo (1KB)
 
 **Razones**:
 - Tamaño suficiente para la mayoría de casos prácticos
