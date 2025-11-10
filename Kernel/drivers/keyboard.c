@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include <keyboard.h>
 #include <fonts.h>
 #include <interrupts.h>
@@ -148,35 +150,35 @@ static const uint8_t scancodeMap[][2] = {
 };
 
 void restoreKeyFnMapNonKernel(SpecialKeyHandler * map) {
-    for(uint8_t i = ESCAPE_KEY; i < F12_KEY; i++){
-        if (KeyFnMap[i].registered_from_kernel == 0) {
-            KeyFnMap[i].fn = map[i];
+    for(uint8_t i = ESCAPE_KEY; i <= F12_KEY; i++){
+        if (KeyFnMap[i - ESCAPE_KEY].registered_from_kernel == 0) {
+            KeyFnMap[i - ESCAPE_KEY].fn = map[i];
         }
     }
 }
 
 void clearKeyFnMapNonKernel(SpecialKeyHandler * map) {
-    for(uint8_t i = ESCAPE_KEY; i < F12_KEY; i++){
-        if (KeyFnMap[i].registered_from_kernel == 0) {
-            map[i] = KeyFnMap[i].fn;
-            KeyFnMap[i].fn = NULL;
+    for(uint8_t i = ESCAPE_KEY; i <= F12_KEY; i++){
+        if (KeyFnMap[i - ESCAPE_KEY].registered_from_kernel == 0) {
+            map[i] = KeyFnMap[i - ESCAPE_KEY].fn;
+            KeyFnMap[i - ESCAPE_KEY].fn = NULL;
         }
     }
 }
 
 void restoreControlKeyFnMapNonKernel(SpecialKeyHandler * map) {
-    for (uint8_t i = ESCAPE_KEY; i < F12_KEY; i++) {
-        if (ControlKeyFnMap[i].registered_from_kernel == 0) {
-            ControlKeyFnMap[i].fn = map[i];
+    for (uint8_t i = ESCAPE_KEY; i <= F12_KEY; i++) {
+        if (ControlKeyFnMap[i - ESCAPE_KEY].registered_from_kernel == 0) {
+            ControlKeyFnMap[i - ESCAPE_KEY].fn = map[i];
         }
     }
 }
 
 void clearControlKeyFnMapNonKernel(SpecialKeyHandler * map) {
-    for (uint8_t i = ESCAPE_KEY; i < F12_KEY; i++) {
-        if (ControlKeyFnMap[i].registered_from_kernel == 0) {
-            map[i] = ControlKeyFnMap[i].fn;
-            ControlKeyFnMap[i].fn = NULL;
+    for (uint8_t i = ESCAPE_KEY; i <= F12_KEY; i++) {
+        if (ControlKeyFnMap[i - ESCAPE_KEY].registered_from_kernel == 0) {
+            map[i] = ControlKeyFnMap[i - ESCAPE_KEY].fn;
+            ControlKeyFnMap[i - ESCAPE_KEY].fn = NULL;
         }
     }
 }
@@ -203,20 +205,26 @@ static inline void signalKeyboardInput(void) {
 }
 
 uint8_t registerSpecialKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel) {
-    if (IS_KEYCODE(scancode) && ((registeredFromKernel != 0 || (registeredFromKernel == 0 && KeyFnMap[scancode].fn == NULL)))) {
-        KeyFnMap[scancode].fn = fn;
-        KeyFnMap[scancode].registered_from_kernel = registeredFromKernel;
-        return 1;
+    if (IS_KEYCODE(scancode) && scancode >= ESCAPE_KEY && scancode <= F12_KEY) {
+        // Only allow registration if either registering from kernel, or the slot is empty
+        if (registeredFromKernel != 0 || KeyFnMap[scancode - ESCAPE_KEY].fn == NULL) {
+            KeyFnMap[scancode - ESCAPE_KEY].fn = fn;
+            KeyFnMap[scancode - ESCAPE_KEY].registered_from_kernel = registeredFromKernel;
+            return 1;
+        }
     }
 
     return 0;
 }
 
 uint8_t registerControlKey(enum KEYS scancode, SpecialKeyHandler fn, uint8_t registeredFromKernel) {
-    if (IS_KEYCODE(scancode) && ((registeredFromKernel != 0) || (registeredFromKernel == 0 && ControlKeyFnMap[scancode].fn == NULL))) {
-        ControlKeyFnMap[scancode].fn = fn;
-        ControlKeyFnMap[scancode].registered_from_kernel = registeredFromKernel;
-        return 1;
+    if (IS_KEYCODE(scancode) && scancode >= ESCAPE_KEY && scancode <= F12_KEY) {
+        // Only allow registration if either registering from kernel, or the slot is empty
+        if (registeredFromKernel != 0 || ControlKeyFnMap[scancode - ESCAPE_KEY].fn == NULL) {
+            ControlKeyFnMap[scancode - ESCAPE_KEY].fn = fn;
+            ControlKeyFnMap[scancode - ESCAPE_KEY].registered_from_kernel = registeredFromKernel;
+            return 1;
+        }
     }
     return 0;
 }
@@ -311,21 +319,22 @@ uint8_t keyboardHandler(){
         case SHIFT_KEY_L:
         case SHIFT_KEY_R:
             SHIFT_KEY_PRESSED = is_pressed;
-            break;
+            return scancode;
         case CONTROL_KEY_L:
             CONTROL_KEY_PRESSED = is_pressed;
-            break;
+            return scancode;
         case CAPS_LOCK_KEY:
             if (is_pressed)
                 CAPS_LOCK_KEY_PRESSED = !CAPS_LOCK_KEY_PRESSED;
+            return scancode;
+        default:
             break;
-
-        return scancode;
     }
     
-    if (! (is_pressed && IS_KEYCODE(scancode)) ) return scancode; // ignore break or unsupported scancodes
+    if (!IS_KEYCODE(scancode)) return scancode; // ignore unsupported scancodes
+    if (!is_pressed) return scancode; // ignore break codes
 
-    if (CONTROL_KEY_PRESSED && is_pressed && scancode < (sizeof(scancodeMap) / sizeof(scancodeMap[0]))) {
+    if (CONTROL_KEY_PRESSED && scancode < (sizeof(scancodeMap) / sizeof(scancodeMap[0]))) {
         int8_t ctrlChar = scancodeMap[scancode][SHIFT_KEY_PRESSED];
         if (ctrlChar == 'c' || ctrlChar == 'C') {
             handleKernelCtrlC();
@@ -338,8 +347,8 @@ uint8_t keyboardHandler(){
         }
     }
 
-    if (CONTROL_KEY_PRESSED && code >= ESCAPE_KEY && code <= F12_KEY && ControlKeyFnMap[code].fn != NULL) {
-        ControlKeyFnMap[code].fn(code);
+    if (CONTROL_KEY_PRESSED && code >= ESCAPE_KEY && code <= F12_KEY && ControlKeyFnMap[code - ESCAPE_KEY].fn != NULL) {
+        ControlKeyFnMap[code - ESCAPE_KEY].fn(code);
         return scancode;
     }
     
@@ -369,8 +378,8 @@ uint8_t keyboardHandler(){
     }
 
     // Call the registered function for the key, if any
-    if (KeyFnMap[scancode].fn != 0) {
-        KeyFnMap[scancode].fn(scancode);
+    if (code >= ESCAPE_KEY && code <= F12_KEY && KeyFnMap[code - ESCAPE_KEY].fn != 0) {
+        KeyFnMap[code - ESCAPE_KEY].fn(code);
     }
 
     return scancode;

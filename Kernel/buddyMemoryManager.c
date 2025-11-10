@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "MemoryManager.h"
 
 #include <stddef.h>
@@ -168,7 +170,6 @@ void createMemory(void *const restrict startAddress, const size_t size)
 	managedBase = alignedBase;
 	managedEnd = alignedEnd;
 	managedBytes = (uint64_t)(alignedEnd - alignedBase);
-	freeBytes = 0;
 
 	for (int order = MAX_ORDER; order >= MIN_ORDER; order--)
 	{

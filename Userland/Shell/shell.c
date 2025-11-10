@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "./../libc/stdio.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -242,7 +244,7 @@ static void printPreviousCommand(enum REGISTERABLE_KEYS scancode)
 	last_command_arrowed = SUB_MOD(last_command_arrowed, 1, HISTORY_SIZE);
 	if (command_history[last_command_arrowed][0] != 0)
 	{
-		fprintf(FD_STDIN, command_history[last_command_arrowed]);
+		printf("%s", command_history[last_command_arrowed]);
 	}
 }
 
@@ -253,7 +255,7 @@ static void printNextCommand(enum REGISTERABLE_KEYS scancode)
 	last_command_arrowed = (last_command_arrowed + 1) % HISTORY_SIZE;
 	if (command_history[last_command_arrowed][0] != 0)
 	{
-		fprintf(FD_STDIN, command_history[last_command_arrowed]);
+		printf("%s", command_history[last_command_arrowed]);
 	}
 }
 

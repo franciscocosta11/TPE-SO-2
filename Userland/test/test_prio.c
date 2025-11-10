@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include <stdint.h>
 #include <stdio.h>
 #include <sys.h>
@@ -19,7 +21,7 @@ void zero_to_max() {
 
   while (value++ != max_value);
 
-  printf("PROCESS %d DONE!\n", my_getpid());
+  printf("PROCESS %lld DONE!\n", (long long)my_getpid());
 }
 
 // Wrapper que llama a exitProcess al terminar
@@ -56,7 +58,7 @@ uint64_t test_prio(uint64_t argc, char *argv[]) {
   for (i = 0; i < TOTAL_PROCESSES; i++) {
     pids[i] = my_create_process("zero_to_max", 0, ztm_argv);
     my_nice(pids[i], prio[i]);
-    printf("  PROCESS %d NEW PRIORITY: %d\n", pids[i], prio[i]);
+    printf("  PROCESS %lld NEW PRIORITY: %lld\n", (long long)pids[i], (long long)prio[i]);
   }
 
   // Expect the priorities to take effect
@@ -70,7 +72,7 @@ uint64_t test_prio(uint64_t argc, char *argv[]) {
     pids[i] = my_create_process("zero_to_max", 0, ztm_argv);
     my_block(pids[i]);
     my_nice(pids[i], prio[i]);
-    printf("  PROCESS %d NEW PRIORITY: %d\n", pids[i], prio[i]);
+    printf("  PROCESS %lld NEW PRIORITY: %lld\n", (long long)pids[i], (long long)prio[i]);
   }
 
   for (i = 0; i < TOTAL_PROCESSES; i++)

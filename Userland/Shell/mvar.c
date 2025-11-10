@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 /*
  * Standalone MVar test command.
  * - Each invocation creates unique semaphores so multiple runs don't clash.
@@ -26,7 +28,7 @@
 #define MVAR_BUSY_WAIT_RAND 200
 #define MVAR_NUM_COLORS 10
 
-static const char *mvar_reader_colors[] = {
+static const char *mvarReaderColors[] = {
     "\e[0;31m",  // Red
     "\e[0;32m",  // Green
     "\e[0;33m",  // Yellow
@@ -40,9 +42,9 @@ static const char *mvar_reader_colors[] = {
 };
 
 // Bounded buffer that all shell processes can access.
-static volatile char mvar_buffer[MVAR_BUFFER_SIZE];
-static volatile int mvar_write_pos = 0;
-static volatile int mvar_read_pos = 0;
+static volatile char mvarBuffer[MVAR_BUFFER_SIZE];
+static volatile int mvarWritePos = 0;
+static volatile int mvarReadPos = 0;
 
 typedef struct {
     char letter;
@@ -69,14 +71,14 @@ static int currentSemFullId = -1;
 static int currentSemWriteMutexId = -1;
 static int currentSemReadMutexId = -1;
 
-static int mvar_start(int numWriters, int numReaders);
+static int mvarStart(int numWriters, int numReaders);
 
-static unsigned int mvar_simple_rand(unsigned int *seed) {
+static unsigned int mvarSimpleRand(unsigned int *seed) {
     *seed = *seed * 1103515245 + 12345;
     return *seed;
 }
 
-static int append_number(char *dest, int idx, unsigned int value) {
+static int appendNumber(char *dest, int idx, unsigned int value) {
     char tmp[12];
     int len = 0;
     do {
@@ -89,20 +91,20 @@ static int append_number(char *dest, int idx, unsigned int value) {
     return idx;
 }
 
-static void build_sem_name(char *dest, const char *prefix, int pid, unsigned int uniqueId) {
+static void buildSemName(char *dest, const char *prefix, int pid, unsigned int uniqueId) {
     int idx = 0;
     dest[idx++] = '/';
     for (const char *p = prefix; *p != '\0'; p++) {
         dest[idx++] = *p;
     }
     dest[idx++] = '_';
-    idx = append_number(dest, idx, (unsigned int)pid);
+    idx = appendNumber(dest, idx, (unsigned int)pid);
     dest[idx++] = '_';
-    idx = append_number(dest, idx, uniqueId);
+    idx = appendNumber(dest, idx, uniqueId);
     dest[idx] = '\0';
 }
 
-static void copy_sem_name(char dest[32], const char *src) {
+static void copySemName(char dest[32], const char *src) {
     for (int i = 0; i < 32; i++) {
         dest[i] = src[i];
         if (src[i] == '\0') {
@@ -111,7 +113,7 @@ static void copy_sem_name(char dest[32], const char *src) {
     }
 }
 
-static int parse_positive_int(const char *s) {
+static int parsePositiveInt(const char *s) {
     if (s == NULL || *s == '\0') return -1;
     int val = 0;
     int idx = 0;
@@ -125,7 +127,7 @@ static int parse_positive_int(const char *s) {
     return val;
 }
 
-static int get_my_priority(void) {
+static int getMyPriority(void) {
     ProcessInfo procs[32];
     int count = getProcesses(procs, 32);
     int mypid = getPid();
@@ -138,8 +140,8 @@ static int get_my_priority(void) {
     return 0;
 }
 
-static void adaptive_yield(unsigned int *seed) {
-    int prio = get_my_priority();
+static void adaptiveYield(unsigned int *seed) {
+    int prio = getMyPriority();
     int maxSleep;
 
     switch (prio) {
@@ -149,21 +151,15 @@ static void adaptive_yield(unsigned int *seed) {
         default: maxSleep = 5; break;
     }
 
-    if (maxSleep <= 0) {
-        return;
-    }
-
     int minSleep = maxSleep / 4;
     int jitterRange = maxSleep - minSleep;
-    unsigned int randVal = mvar_simple_rand(seed);
+    unsigned int randVal = mvarSimpleRand(seed);
     int sleepTime = minSleep + (jitterRange > 0 ? (randVal % (jitterRange + 1)) : 0);
 
-    if (sleepTime > 0) {
-        sleep(sleepTime);
-    }
+    sleep(sleepTime);
 }
 
-static void cleanup_previous_mvar(void) {
+static void cleanupPreviousMvar(void) {
     for (int i = 0; i < activeWriters; i++) {
         int pid = activeWriterPids[i];
         if (pid > 0) {
@@ -201,7 +197,8 @@ static void cleanup_previous_mvar(void) {
     }
 }
 
-static void mvar_writer_entry(uint64_t argc, char **argv) {
+static void mvarWriterEntry(uint64_t argc, char **argv) {
+    (void)argc;
     MvarWriterArg *warg = (MvarWriterArg *)argv;
     int sem_empty = semOpen(warg->semEmptyName);
     int sem_full = semOpen(warg->semFullName);
@@ -214,21 +211,20 @@ static void mvar_writer_entry(uint64_t argc, char **argv) {
     unsigned int seed = (unsigned int)(getPid() * 2654435761u + warg->writerNum * 97);
 
     while (1) {
-        unsigned int wait_time = MVAR_BUSY_WAIT_BASE + (mvar_simple_rand(&seed) % MVAR_BUSY_WAIT_RAND);
-        for (unsigned int i = 0; i < wait_time; i++) {
-            __asm__ volatile("nop");
+        unsigned int waitTime = MVAR_BUSY_WAIT_BASE + (mvarSimpleRand(&seed) % MVAR_BUSY_WAIT_RAND);
+        for (volatile unsigned int i = 0; i < waitTime; i++) {
         }
 
         if (semWait(sem_empty) < 0) break;
         if (semWait(sem_write_mutex) < 0) break;
 
-        mvar_buffer[mvar_write_pos] = warg->letter;
-        mvar_write_pos = (mvar_write_pos + 1) % MVAR_BUFFER_SIZE;
+        mvarBuffer[mvarWritePos] = warg->letter;
+        mvarWritePos = (mvarWritePos + 1) % MVAR_BUFFER_SIZE;
 
         semPost(sem_write_mutex);
         semPost(sem_full);
 
-        adaptive_yield(&seed);
+        adaptiveYield(&seed);
     }
 
     semClose(sem_empty);
@@ -237,7 +233,8 @@ static void mvar_writer_entry(uint64_t argc, char **argv) {
     sys_exit(0);
 }
 
-static void mvar_reader_entry(uint64_t argc, char **argv) {
+static void mvarReaderEntry(uint64_t argc, char **argv) {
+    (void)argc;
     MvarReaderArg *rarg = (MvarReaderArg *)argv;
     const char *myColor = rarg->color;
 
@@ -255,20 +252,19 @@ static void mvar_reader_entry(uint64_t argc, char **argv) {
         if (semWait(sem_full) < 0) break;
         if (semWait(sem_read_mutex) < 0) break;
 
-        char val = mvar_buffer[mvar_read_pos];
-        mvar_read_pos = (mvar_read_pos + 1) % MVAR_BUFFER_SIZE;
+        char val = mvarBuffer[mvarReadPos];
+        mvarReadPos = (mvarReadPos + 1) % MVAR_BUFFER_SIZE;
 
         semPost(sem_read_mutex);
         semPost(sem_empty);
 
         printf("%s%c\e[0m", myColor, val);
 
-        unsigned int wait_time = MVAR_BUSY_WAIT_BASE + (mvar_simple_rand(&seed) % MVAR_BUSY_WAIT_RAND);
-        for (unsigned int i = 0; i < wait_time; i++) {
-            __asm__ volatile("nop");
+        unsigned int waitTime = MVAR_BUSY_WAIT_BASE + (mvarSimpleRand(&seed) % MVAR_BUSY_WAIT_RAND);
+        for (volatile unsigned int i = 0; i < waitTime; i++) {
         }
 
-        adaptive_yield(&seed);
+        adaptiveYield(&seed);
     }
 
     semClose(sem_empty);
@@ -277,7 +273,7 @@ static void mvar_reader_entry(uint64_t argc, char **argv) {
     sys_exit(0);
 }
 
-static int mvar_start(int numWriters, int numReaders) {
+static int mvarStart(int numWriters, int numReaders) {
     if (numWriters <= 0 || numReaders <= 0) {
         printf("mvar: Both writers and readers must be > 0\n");
         return 1;
@@ -287,26 +283,26 @@ static int mvar_start(int numWriters, int numReaders) {
         return 1;
     }
 
-    cleanup_previous_mvar();
+    cleanupPreviousMvar();
 
-    mvar_write_pos = 0;
-    mvar_read_pos = 0;
+    mvarWritePos = 0;
+    mvarReadPos = 0;
     for (int i = 0; i < MVAR_BUFFER_SIZE; i++) {
-        mvar_buffer[i] = 0;
+        mvarBuffer[i] = 0;
     }
 
     int myPid = getPid();
     unsigned int seed = (unsigned int)(myPid * 1664525u + 1013904223u);
-    unsigned int uniqueId = mvar_simple_rand(&seed) % 100000u;
+    unsigned int uniqueId = mvarSimpleRand(&seed) % 100000u;
 
     char semEmptyName[32];
     char semFullName[32];
     char semWriteMutexName[32];
     char semReadMutexName[32];
-    build_sem_name(semEmptyName, "mve", myPid, uniqueId);
-    build_sem_name(semFullName, "mvf", myPid, uniqueId);
-    build_sem_name(semWriteMutexName, "mvw", myPid, uniqueId);
-    build_sem_name(semReadMutexName, "mvr", myPid, uniqueId);
+    buildSemName(semEmptyName, "mve", myPid, uniqueId);
+    buildSemName(semFullName, "mvf", myPid, uniqueId);
+    buildSemName(semWriteMutexName, "mvw", myPid, uniqueId);
+    buildSemName(semReadMutexName, "mvr", myPid, uniqueId);
 
     int sem_empty = semCreate(semEmptyName, MVAR_BUFFER_SIZE);
     int sem_full = semCreate(semFullName, 0);
@@ -331,9 +327,9 @@ static int mvar_start(int numWriters, int numReaders) {
     for (int i = 0; i < numWriters; i++) {
         writerArgs[i].letter = 'A' + i;
         writerArgs[i].writerNum = i;
-        copy_sem_name(writerArgs[i].semEmptyName, semEmptyName);
-        copy_sem_name(writerArgs[i].semFullName, semFullName);
-        copy_sem_name(writerArgs[i].semWriteMutexName, semWriteMutexName);
+        copySemName(writerArgs[i].semEmptyName, semEmptyName);
+        copySemName(writerArgs[i].semFullName, semFullName);
+        copySemName(writerArgs[i].semWriteMutexName, semWriteMutexName);
 
         static char writerNames[MVAR_MAX_PROCESSES][8];
         writerNames[i][0] = 'w';
@@ -341,7 +337,7 @@ static int mvar_start(int numWriters, int numReaders) {
         writerNames[i][2] = 'A' + i;
         writerNames[i][3] = '\0';
 
-        int pid = createProcess(writerNames[i], mvar_writer_entry, (char **)&writerArgs[i], 0, NULL, 0, 0, 0);
+        int pid = createProcess(writerNames[i], mvarWriterEntry, (char **)(void *)&writerArgs[i], 0, NULL, 0, 0, 0);
         if (pid > 0) {
             activeWriterPids[activeWriters++] = pid;
         } else {
@@ -353,10 +349,10 @@ static int mvar_start(int numWriters, int numReaders) {
 
     for (int i = 0; i < numReaders; i++) {
         readerArgs[i].readerNum = i;
-        readerArgs[i].color = mvar_reader_colors[mvar_simple_rand(&colorSeed) % MVAR_NUM_COLORS];
-        copy_sem_name(readerArgs[i].semEmptyName, semEmptyName);
-        copy_sem_name(readerArgs[i].semFullName, semFullName);
-        copy_sem_name(readerArgs[i].semReadMutexName, semReadMutexName);
+        readerArgs[i].color = mvarReaderColors[mvarSimpleRand(&colorSeed) % MVAR_NUM_COLORS];
+        copySemName(readerArgs[i].semEmptyName, semEmptyName);
+        copySemName(readerArgs[i].semFullName, semFullName);
+        copySemName(readerArgs[i].semReadMutexName, semReadMutexName);
 
         static char readerNames[MVAR_MAX_PROCESSES][8];
         readerNames[i][0] = 'r';
@@ -364,7 +360,7 @@ static int mvar_start(int numWriters, int numReaders) {
         readerNames[i][2] = '0' + i;
         readerNames[i][3] = '\0';
 
-        int pid = createProcess(readerNames[i], mvar_reader_entry, (char **)&readerArgs[i], 0, NULL, 0, 0, 0);
+        int pid = createProcess(readerNames[i], mvarReaderEntry, (char **)(void *)&readerArgs[i], 0, NULL, 0, 0, 0);
         if (pid > 0) {
             activeReaderPids[activeReaders++] = pid;
         } else {
@@ -394,12 +390,12 @@ int mvar_cmd(void) {
         return 1;
     }
 
-    int writers = parse_positive_int(argW);
-    int readers = parse_positive_int(argR);
+    int writers = parsePositiveInt(argW);
+    int readers = parsePositiveInt(argR);
     if (writers <= 0 || readers <= 0) {
         fprintf(FD_STDERR, "mvar: invalid arguments\n");
         return 1;
     }
 
-    return mvar_start(writers, readers);
+    return mvarStart(writers, readers);
 }

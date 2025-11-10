@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "./../libc/stdio.h"
 #include <stdlib.h>
 #include <string.h>
@@ -509,13 +511,12 @@ cleanup:
 static void test_prio_entry(uint64_t argc, char **argv)
 {
     uint64_t result = test_prio(argc, argv);
+    testPrioRunning = 0;
     if (result != 0)
     {
         fprintf(FD_STDERR, "test_prio failed with code %lld\n", (long long)result);
-        testPrioRunning = 0;
         exitProcess((int)result);
     }
-    testPrioRunning = 0;
     exitProcess(0);
 }
 
@@ -525,12 +526,14 @@ static void test_process_entry(uint64_t argc, char **argv)
     {
         fprintf(FD_STDERR, "Usage: test_process <max_processes>\n");
         exitProcess(1);
+        return;
     }
 
-    if (argc > 2 && argv[2] != NULL)
+    if (argc > 2)
     {
         fprintf(FD_STDERR, "test_process accepts exactly one parameter\n");
         exitProcess(1);
+        return;
     }
 
     char *args[] = {argv[1], NULL};
@@ -772,7 +775,7 @@ static int regs(void)
 
     for (int i = 0; i < 18; i++)
     {
-        printf("\e[0;34m%s\e[0m: %x\n", register_names[i], registers[i]);
+        printf("\e[0;34m%s\e[0m: %llx\n", register_names[i], (unsigned long long)registers[i]);
     }
 
     return 0;
@@ -803,13 +806,11 @@ static void loop_entry(uint64_t argc, char **argv)
         milliseconds = 2000;
     }
 
-    while (1)
+    while (1) //-V776
     {
         printf("Hola, soy el proceso %d\n", pid);
         sleep(milliseconds);
     }
-
-    exitProcess(0);
 }
 
 static int nice(void)
@@ -1011,12 +1012,8 @@ static int pipe_sync_cmd(void)
         return 1;
     }
 
-    int writerStatus = 0;
-    int readerStatus = 0;
-    if (writerPid > 0)
-        writerStatus = waitProcess(writerPid);
-    if (readerPid > 0)
-        readerStatus = waitProcess(readerPid);
+    int writerStatus = waitProcess(writerPid);
+    int readerStatus = waitProcess(readerPid);
 
     if (writerStatus == 0 && readerStatus == 0)
     {
