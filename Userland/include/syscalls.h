@@ -75,11 +75,5 @@ int32_t sys_sem_close(int32_t semId);
 int32_t sys_sem_wait(int32_t semId);
 int32_t sys_sem_post(int32_t semId);
 int32_t sys_sem_get_value(int32_t semId);
-int32_t sys_sem_reset(int32_t semId, uint32_t newValue);
-
-/* Critical-test semaphore helpers */
-void sys_sem_enter_critical_test(void);
-void sys_sem_leave_critical_test(void);
-int32_t sys_sem_get_critical_count(void);
 
 #endif

@@ -24,6 +24,7 @@ extern int availableProcesses;
 #define PROCESS_STACK_SIZE (16 * 1024) // 16 KiB; ajustá si tu kernel lo necesita
 
 #define MAX_FD 16
+#define MAX_SEM_PER_PROCESS 8
 
 /**
  * @brief Frame de pila que se guarda al switchear de contexto.
@@ -96,6 +97,7 @@ typedef struct Process
     ProcessEntryPoint entry; // entry point
     char **Arg;             // argumento inicial
     File *fdTable[MAX_FD];
+    int32_t openSemaphores[MAX_SEM_PER_PROCESS];
 } Process;
 
 extern struct Process processTable[MAX_PROCESSES]; // tabla de procesos

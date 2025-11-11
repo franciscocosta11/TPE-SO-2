@@ -58,15 +58,6 @@ int32_t semPost(int32_t semId);
 int32_t semGetValue(int32_t semId);
 
 /**
- * @brief Restablece el semáforo a un nuevo valor y libera a los procesos bloqueados.
- *
- * @param semId Identificador del semáforo.
- * @param newValue Nuevo valor inicial.
- * @return 0 si la operación fue exitosa, negativo en caso contrario.
- */
-int32_t semReset(int32_t semId, uint32_t newValue);
-
-/**
  * @brief Quita a un proceso de todas las colas de espera de semáforos.
  *
  * Se invoca al terminar un proceso para evitar deadlocks.
@@ -75,21 +66,6 @@ int32_t semReset(int32_t semId, uint32_t newValue);
  */
 void semRemoveProcessFromAllQueues(int32_t pid);
 
-/**
- * @brief Marca la entrada a una sección crítica para pruebas.
- */
-void semEnterCriticalTest(void);
-
-/**
- * @brief Marca la salida de la sección crítica utilizada en pruebas.
- */
-void semLeaveCriticalTest(void);
-
-/**
- * @brief Devuelve la cantidad de procesos en la sección crítica de prueba.
- *
- * @return Número de procesos concurrentes registrados.
- */
-int32_t semGetCriticalCount(void);
+void semCloseAllForProcess(int32_t pid);
 
 #endif // SEMAPHORE_H

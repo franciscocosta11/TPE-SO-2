@@ -43,9 +43,6 @@ static inline void releaseSemLock(void) {
     semLock = 0;
 }
 
-// Contador global para verificar exclusión mutua (para testing)
-static volatile int32_t criticalSectionCounter = 0;
-
 // Inicializa el sistema de semáforos
 void initSemaphores(void) {
     if (initialized) {
@@ -114,6 +111,23 @@ int32_t semCreate(const char *name, uint32_t initialValue) {
     semaphores[semId].blockedCount = 0;
     semaphores[semId].refCount = 1;
 
+    Process *current = getCurrentProcess();
+    if (current != NULL) {
+        int registered = 0;
+        for (int i = 0; i < MAX_SEM_PER_PROCESS; i++) {
+            if (current->openSemaphores[i] == -1) {
+                current->openSemaphores[i] = semId;
+                registered = 1;
+                break;
+            }
+        }
+        if (!registered) {
+            semaphores[semId].inUse = 0;
+            semaphores[semId].refCount = 0;
+            return -4;
+        }
+    }
+
     return semId;
 }
 
@@ -133,6 +147,27 @@ int32_t semOpen(const char *name) {
         return -2;  // No existe
     }
 
+    Process *current = getCurrentProcess();
+    if (current != NULL) {
+        for (int i = 0; i < MAX_SEM_PER_PROCESS; i++) {
+            if (current->openSemaphores[i] == semId) {
+                return -3;
+            }
+        }
+
+        int registered = 0;
+        for (int i = 0; i < MAX_SEM_PER_PROCESS; i++) {
+            if (current->openSemaphores[i] == -1) {
+                current->openSemaphores[i] = semId;
+                registered = 1;
+                break;
+            }
+        }
+        if (!registered) {
+            return -4;
+        }
+    }
+
     semaphores[semId].refCount++;
     return semId;
 }
@@ -150,9 +185,17 @@ int32_t semClose(int32_t semId) {
 
     semaphores[semId].refCount--;
 
-    // Si no hay más referencias, liberar el semáforo
+    Process *current = getCurrentProcess();
+    if (current != NULL) {
+        for (int i = 0; i < MAX_SEM_PER_PROCESS; i++) {
+            if (current->openSemaphores[i] == semId) {
+                current->openSemaphores[i] = -1;
+                break;
+            }
+        }
+    }
+
     if (semaphores[semId].refCount == 0) {
-        // Desbloquear todos los procesos bloqueados (con error)
         for (uint32_t i = 0; i < semaphores[semId].blockedCount; i++) {
             unblockProcess(semaphores[semId].blockedPids[i]);
         }
@@ -162,6 +205,36 @@ int32_t semClose(int32_t semId) {
     }
 
     return 0;
+}
+
+void semCloseAllForProcess(int32_t pid) {
+    if (pid <= 0) {
+        return;
+    }
+
+    Process *process = getProcessByPid(pid);
+    if (process == NULL) {
+        return;
+    }
+
+    for (int i = 0; i < MAX_SEM_PER_PROCESS; i++) {
+        int32_t semId = process->openSemaphores[i];
+        if (semId >= 0 && semId < MAX_SEMAPHORES && semaphores[semId].inUse) {
+            if (semaphores[semId].refCount > 0) {
+                semaphores[semId].refCount--;
+            }
+
+            if (semaphores[semId].refCount == 0) {
+                for (uint32_t j = 0; j < semaphores[semId].blockedCount; j++) {
+                    unblockProcess(semaphores[semId].blockedPids[j]);
+                }
+                semaphores[semId].inUse = 0;
+                semaphores[semId].blockedCount = 0;
+            }
+
+            process->openSemaphores[i] = -1;
+        }
+    }
 }
 
 // Remueve un proceso de todas las colas de espera de semáforos
@@ -201,31 +274,6 @@ void semRemoveProcessFromAllQueues(int32_t pid) {
     }
 
     releaseSemLock();
-}
-
-// Resetea un semáforo a un nuevo valor y limpia todos los procesos bloqueados
-// Útil para reinicializar semáforos entre ejecuciones
-// IMPORTANTE: No desbloquea procesos activos, solo limpia la lista
-int32_t semReset(int32_t semId, uint32_t newValue) {
-    if (semId < 0 || semId >= MAX_SEMAPHORES) {
-        return -1;  // ID inválido
-    }
-
-    if (!semaphores[semId].inUse) {
-        return -2;  // Semáforo no existe
-    }
-
-    acquireSemLock();
-
-    // Simplemente resetear el valor y limpiar la lista de bloqueados
-    // NO desbloquear procesos porque pueden ser procesos muertos que ya fueron
-    // limpiados por semRemoveProcessFromAllQueues(), o pueden no existir más
-    semaphores[semId].value = newValue;
-    semaphores[semId].blockedCount = 0;
-
-    releaseSemLock();
-
-    return 0;
 }
 
 // Operación Wait (P) - Decrementa el semáforo, bloquea si es necesario
@@ -357,17 +405,4 @@ int32_t semGetValue(int32_t semId) {
     }
 
     return semaphores[semId].value;
-}
-
-// Funciones para testing de exclusión mutua
-void semEnterCriticalTest(void) {
-    criticalSectionCounter++;
-}
-
-void semLeaveCriticalTest(void) {
-    criticalSectionCounter--;
-}
-
-int32_t semGetCriticalCount(void) {
-    return criticalSectionCounter;
 }

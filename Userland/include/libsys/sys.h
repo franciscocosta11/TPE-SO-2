@@ -426,29 +426,4 @@ int32_t semPost(int32_t semId);
  */
 int32_t semGetValue(int32_t semId);
 
-/**
- * @brief Restablece el semáforo a un nuevo valor y limpia bloqueados.
- *
- * @param semId Identificador objetivo.
- * @param newValue Valor a asignar.
- * @return 0 en éxito o negativo si la ID no existe.
- */
-int32_t semReset(int32_t semId, uint32_t newValue);
-
-/**
- * @brief Marca que se ingresó a una sección crítica de test.
- */
-void semEnterCriticalTest(void);
-
-/**
- * @brief Marca la salida de la sección crítica usada en tests.
- */
-void semLeaveCriticalTest(void);
-
-/**
- * @brief Devuelve cuántos procesos se reportaron dentro del test crítico.
- *
- * @return Número de procesos simultáneos registrados.
- */
-int32_t semGetCriticalCount(void);
 #endif // LIBSYS_SYS_H

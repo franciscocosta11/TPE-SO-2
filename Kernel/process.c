@@ -37,10 +37,13 @@ void initProcessSystem(void)
         processTable[i].quantumRemaining = 0;
         processTable[i].readyTicks = 0;
         processTable[i].ctx = 0;
-        // Inicializar la tabla de descriptores de archivo en NULL
         for (int j = 0; j < MAX_FD; j++)
         {
             processTable[i].fdTable[j] = NULL;
+        }
+        for (int j = 0; j < MAX_SEM_PER_PROCESS; j++)
+        {
+            processTable[i].openSemaphores[j] = -1;
         }
     }
     availableProcesses = MAX_PROCESSES;
@@ -81,10 +84,13 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     p->readyTicks = 0;
     p->name = name;
     p->isForeground = isForeground;
-    // Limpiar la tabla de descriptores del nuevo proceso
     for (int j = 0; j < MAX_FD; j++)
     {
         p->fdTable[j] = NULL;
+    }
+    for (int j = 0; j < MAX_SEM_PER_PROCESS; j++)
+    {
+        p->openSemaphores[j] = -1;
     }
 
     size_t sz = (StackSize > 0) ? StackSize : PROCESS_STACK_SIZE;
@@ -154,10 +160,9 @@ void exitCurrentProcess(int exitCode)
         return;
     }
 
-    // Remover el proceso de cualquier cola de espera de semáforos
+    semCloseAllForProcess(currentProcess->pid);
     semRemoveProcessFromAllQueues(currentProcess->pid);
 
-    // Cerrar FDs abiertos del proceso
     if (currentProcess != NULL)
     {
         for (int j = 0; j < MAX_FD; j++)
@@ -212,8 +217,7 @@ int killProcess(int pid)
         {
             Process *victim = &processTable[i];
 
-            // Remover el proceso de cualquier cola de espera de semáforos
-            // Esto evita deadlocks cuando un proceso es killed mientras espera en un semáforo
+            semCloseAllForProcess(pid);
             semRemoveProcessFromAllQueues(pid);
 
             // Si estaba en READY, sacarlo de la ready queue

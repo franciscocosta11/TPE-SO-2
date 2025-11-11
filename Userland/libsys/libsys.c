@@ -159,22 +159,6 @@ int32_t semGetValue(int32_t semId) {
     return sys_sem_get_value(semId);
 }
 
-int32_t semReset(int32_t semId, uint32_t newValue) {
-    return sys_sem_reset(semId, newValue);
-}
-
-void semEnterCriticalTest(void) {
-    sys_sem_enter_critical_test();
-}
-
-void semLeaveCriticalTest(void) {
-    sys_sem_leave_critical_test();
-}
-
-int32_t semGetCriticalCount(void) {
-    return sys_sem_get_critical_count();
-}
-
 // ================================================================
 // IPC / File descriptor helpers (dummy-backed)
 // ================================================================

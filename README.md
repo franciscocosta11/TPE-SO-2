@@ -139,6 +139,8 @@ Estos comandos pueden usarse en pipes y soportan ejecución en background con `&
 - **Operaciones**: `semOpen()`, `semClose()`, `semWait()`, `semPost()`
 - **Bloqueo**: Procesos que hacen wait en semáforo con valor 0 se bloquean
 - **Múltiples instancias**: Soporta múltiples semáforos simultáneos con nombres únicos
+- **Reference Counting**: Control automático de referencias para gestión de ciclo de vida
+- **Gestión automática de recursos**: Cuando un proceso termina o es matado, todos los semáforos que tenía abiertos se cierran automáticamente, previniendo leaks de recursos. Cada proceso mantiene un registro de sus semáforos abiertos (máximo 8) y el kernel los libera al terminar el proceso
 
 ### Pipes
 
@@ -433,6 +435,24 @@ ps
 
 **Trade-off**: Limita casos de uso interactivos en background
 
+### Gestión Automática de Semáforos
+
+**Decisión**: Tracking automático de semáforos por proceso con liberación automática
+
+**Implementación**:
+- Cada proceso mantiene un array de hasta 8 semáforos abiertos
+- Al hacer `semCreate()` o `semOpen()`, el semáforo se registra automáticamente en el proceso
+- Al hacer `semClose()`, se desregistra del proceso
+- Cuando un proceso termina (`exit`) o es matado (`kill`), el kernel cierra automáticamente todos los semáforos registrados
+
+**Razones**:
+- Previene leaks de semáforos cuando procesos mueren inesperadamente
+- Transparente para el código de usuario (no requiere cambios en programas existentes)
+- Similar al modelo de file descriptors (automático y robusto)
+- Garantiza liberación de recursos incluso si un proceso crashea
+
+**Trade-off**: Límite de 8 semáforos simultáneos por proceso (suficiente para casos prácticos)
+
 ---
 
 ## Limitaciones
@@ -451,8 +471,7 @@ ps
 1. **Sin job control avanzado**: No hay `fg`, `bg`, `jobs`
 2. **Sin variables de entorno**: No se soportan variables
 3. **Sin wildcards**: No hay expansión de `*` o `?`
-4. **Historial limitado**: Solo almacena últimos 10 comandos
-5. **Sin autocompletado**: No hay completion de comandos o paths
+4. **Sin autocompletado**: No hay completion de comandos o paths
 
 ---
 
