@@ -59,8 +59,6 @@ void printExceptionData(uint64_t * registers, int errorCode) {
 	print("Press r to go back to Shell");
 
 	char a;
-	// getKeyboardCharacter calls _hlt which triggers _sti
-	// so non-keyboard interrupts are disabled until the user confirms
 
 	picMasterMask(KEYBOARD_PIC_MASTER);
 	picSlaveMask(NO_INTERRUPTS);

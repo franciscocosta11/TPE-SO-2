@@ -4,8 +4,6 @@
 #include <stddef.h>
 
 #include <libsys/sys.h>
-
-#include "include/process_stubs.h"
 #include "include/syscall.h"
 
 int64_t my_getpid(void) {

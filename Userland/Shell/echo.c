@@ -5,10 +5,8 @@
 #include "./../libc/stdio.h"
 #include <string.h>
 
-// Echo process: prints all arguments separated by spaces
 void echo_entry(uint64_t argc, char **argv)
 {
-    // Check if we have arguments
     if (argc == 0 || argv == NULL)
     {
         printf("\n");
@@ -16,7 +14,6 @@ void echo_entry(uint64_t argc, char **argv)
         return;
     }
     
-    // Print all arguments (skipping argv[0] which is the command name)
     int first = 1;
     for (uint64_t i = 1; i < argc; i++)
     {

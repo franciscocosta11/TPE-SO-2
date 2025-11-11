@@ -43,7 +43,6 @@ static inline void releaseSemLock(void) {
     semLock = 0;
 }
 
-// Inicializa el sistema de semáforos
 void initSemaphores(void) {
     if (initialized) {
         return;
@@ -60,7 +59,6 @@ void initSemaphores(void) {
     initialized = 1;
 }
 
-// Encuentra un semáforo por nombre
 static int32_t findSemaphore(const char *name) {
     for (int i = 0; i < MAX_SEMAPHORES; i++) {
         if (semaphores[i].inUse && strcmp(semaphores[i].name, name) == 0) {
@@ -70,7 +68,6 @@ static int32_t findSemaphore(const char *name) {
     return -1;
 }
 
-// Encuentra un slot libre para un nuevo semáforo
 static int32_t findFreeSemaphore(void) {
     for (int i = 0; i < MAX_SEMAPHORES; i++) {
         if (!semaphores[i].inUse) {
@@ -80,30 +77,25 @@ static int32_t findFreeSemaphore(void) {
     return -1;
 }
 
-// Crea un nuevo semáforo con el nombre y valor inicial dados
-// Retorna el ID del semáforo o un valor negativo en caso de error
 int32_t semCreate(const char *name, uint32_t initialValue) {
     if (!initialized) {
         initSemaphores();
     }
 
     if (name == NULL || name[0] == '\0') {
-        return -1;  // Nombre inválido
+        return -1;
     }
 
-    // Verificar si ya existe
     int32_t existingId = findSemaphore(name);
     if (existingId >= 0) {
-        return -2;  // Ya existe
+        return -2;
     }
 
-    // Buscar slot libre
     int32_t semId = findFreeSemaphore();
     if (semId < 0) {
-        return -3;  // No hay espacio
+        return -3;
     }
 
-    // Inicializar el semáforo
     strncpy(semaphores[semId].name, name, MAX_SEM_NAME - 1);
     semaphores[semId].name[MAX_SEM_NAME - 1] = '\0';
     semaphores[semId].value = initialValue;
@@ -131,20 +123,18 @@ int32_t semCreate(const char *name, uint32_t initialValue) {
     return semId;
 }
 
-// Abre un semáforo existente por nombre
-// Retorna el ID del semáforo o un valor negativo en caso de error
 int32_t semOpen(const char *name) {
     if (!initialized) {
         initSemaphores();
     }
 
     if (name == NULL || name[0] == '\0') {
-        return -1;  // Nombre inválido
+        return -1;
     }
 
     int32_t semId = findSemaphore(name);
     if (semId < 0) {
-        return -2;  // No existe
+        return -2;
     }
 
     Process *current = getCurrentProcess();
@@ -172,15 +162,13 @@ int32_t semOpen(const char *name) {
     return semId;
 }
 
-// Cierra un semáforo (decrementa el contador de referencias)
-// Si refCount llega a 0, el semáforo se elimina
 int32_t semClose(int32_t semId) {
     if (semId < 0 || semId >= MAX_SEMAPHORES) {
-        return -1;  // ID inválido
+        return -1;
     }
 
     if (!semaphores[semId].inUse) {
-        return -2;  // Semáforo no existe
+        return -2;
     }
 
     semaphores[semId].refCount--;
@@ -237,8 +225,6 @@ void semCloseAllForProcess(int32_t pid) {
     }
 }
 
-// Remueve un proceso de todas las colas de espera de semáforos
-// Se llama cuando un proceso es terminado/killed para evitar deadlocks
 void semRemoveProcessFromAllQueues(int32_t pid) {
     if (pid <= 0) {
         return;
@@ -246,28 +232,18 @@ void semRemoveProcessFromAllQueues(int32_t pid) {
 
     acquireSemLock();
 
-    // Iterar sobre todos los semáforos
     for (int i = 0; i < MAX_SEMAPHORES; i++) {
         if (!semaphores[i].inUse) {
             continue;
         }
 
-        // Buscar el PID en la lista de bloqueados
         for (uint32_t j = 0; j < semaphores[i].blockedCount; j++) {
             if (semaphores[i].blockedPids[j] == pid) {
-                // Encontrado - removerlo de la lista
-                // Mover todos los siguientes hacia adelante
                 for (uint32_t k = j; k < semaphores[i].blockedCount - 1; k++) {
                     semaphores[i].blockedPids[k] = semaphores[i].blockedPids[k + 1];
                 }
                 semaphores[i].blockedCount--;
 
-                // IMPORTANTE: NO incrementar el valor del semáforo
-                // El proceso ya hizo semWait (decrementó el valor) y quedó bloqueado
-                // El valor negativo del semáforo ya refleja correctamente que hay
-                // procesos bloqueados esperando. Solo removemos el PID de la lista.
-
-                // No seguir buscando en este semáforo (un proceso solo puede estar una vez)
                 break;
             }
         }
@@ -276,43 +252,34 @@ void semRemoveProcessFromAllQueues(int32_t pid) {
     releaseSemLock();
 }
 
-// Operación Wait (P) - Decrementa el semáforo, bloquea si es necesario
-// Esta función usa una instrucción atómica para garantizar exclusión mutua
 int32_t semWait(int32_t semId) {
     if (semId < 0 || semId >= MAX_SEMAPHORES) {
-        return -1;  // ID inválido
+        return -1;
     }
 
     if (!semaphores[semId].inUse) {
-        return -2;  // Semáforo no existe
+        return -2;
     }
 
-    // Usar xchg como spinlock para proteger la sección crítica
     acquireSemLock();
 
-    // Sección crítica protegida
     semaphores[semId].value--;
 
     if (semaphores[semId].value < 0) {
-            // Necesitamos bloquear el proceso actual
             Process *self = getCurrentProcess();
             if (self == NULL || self->pid <= 0) {
-                // No hay proceso actual válido para bloquear
-                semaphores[semId].value++; // revert
+                semaphores[semId].value++;
                 releaseSemLock();
                 return -4;
             }
 
             int32_t currentPid = self->pid;
 
-            // Agregar a la lista de bloqueados
             if (semaphores[semId].blockedCount < MAX_BLOCKED_PROCESSES) {
                 semaphores[semId].blockedPids[semaphores[semId].blockedCount++] = currentPid;
 
-                // Liberar el lock antes de bloquear
                 releaseSemLock();
 
-                // Bloquear el proceso actual
                 blockCurrentProcess();
 
                 return 0;
@@ -389,12 +356,10 @@ int32_t semPost(int32_t semId) {
         return 0;
     }
 
-    // Liberar el lock
     releaseSemLock();
     return 0;
 }
 
-// Obtiene información de un semáforo (para debugging)
 int32_t semGetValue(int32_t semId) {
     if (semId < 0 || semId >= MAX_SEMAPHORES) {
         return -1;

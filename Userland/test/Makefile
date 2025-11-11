@@ -17,7 +17,7 @@ $(TARGET): AllTest.o CuTest.o MemoryManagerTest.o ../../Kernel/MemoryManager.o .
 $(TEST_MM_TARGET): test_mm.o test_util.o test_mm_main.o ../../Kernel/MemoryManager.o ../../Kernel/MemoryManager.o
 	$(LINKER) $(LINKER_FLAGS) $^ -o ../$(TEST_MM_TARGET).out
 
-$(TEST_PROCESS_TARGET): test_process.o test_util.o process_test_stubs.o ipc_stubs.o test_process_main.o ../../Kernel/process.o ../../Kernel/MemoryManager.o
+$(TEST_PROCESS_TARGET): test_process.o test_util.o test_process_main.o ../../Kernel/process.o ../../Kernel/MemoryManager.o
 	$(LINKER) $(LINKER_FLAGS) $^ -o ../$(TEST_PROCESS_TARGET).out
 
 %.o : %.c

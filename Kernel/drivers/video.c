@@ -120,8 +120,6 @@ void scrollVideoMemoryUp(uint16_t scroll, uint32_t fillColor) {
 	
 	uint8_t b = (fillColor) & 0xFF, g = (fillColor >> 8) & 0xFF, r = (fillColor >> 16) & 0xFF;
 
-	// Iterating over Y, then X
-	// -> Memory is contiguous in the framebuffer, increased cached hits, reduced tearing
 	uint64_t yoffset, ynoffset, offset, new_offset, xo;
 	for (uint16_t y = 0; y < height - scroll; y++) {
 		yoffset = (y * VBE_mode_info->pitch);

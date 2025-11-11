@@ -23,7 +23,7 @@ void initProcessSystem(void)
 {
     for (int i = 0; i < MAX_PROCESSES; i++)
     {
-        processTable[i].pid = 0; /* pid 0 = libre */
+        processTable[i].pid = 0;
         processTable[i].parentPid = 0;
         processTable[i].state = TERMINATED;
         processTable[i].entry = NULL;
@@ -56,9 +56,7 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     if (Entry == NULL)
         return NULL;
 
-    // busco slot libre
     int slot = -1;
-    //! despues habria que crear la funcion getAvailableSlot... dbpp
     for (int i = 0; i < MAX_PROCESSES; i++)
     {
         if (processTable[i].state == TERMINATED || processTable[i].pid == 0)
@@ -71,9 +69,8 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     if (slot < 0)
         return NULL;
 
-    // creo PCB
     Process *p = &processTable[slot];
-    p->pid = slot + 1; /* pid simple: índice+1 */
+    p->pid = slot + 1;
     p->state = READY;
     p->entry = Entry;
     p->Arg = Argv;
@@ -97,7 +94,6 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     void *stk = allocMemory(sz);
     if (stk == NULL)
     {
-        // osea digamos no funciono
         p->pid = 0;
         p->state = TERMINATED;
         return NULL;
@@ -105,7 +101,6 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
     p->stackBase = stk;
     p->stackSize = sz;
 
-    // Heredar file descriptors del proceso actual (si existe)
     {
         Process *parent = getCurrentProcess();
         p->parentPid = parent != NULL ? parent->pid : 0;
@@ -125,22 +120,9 @@ Process *createProcess(char *name, ProcessEntryPoint Entry, char **Argv, int Arg
 
     if (availableProcesses > 0)
         availableProcesses--;
-    // Contexto inicial: usamos contextSwitchTo (mov rsp, ctx; ret).
-    // Por lo tanto, ctx debe apuntar a una pila cuyo tope contenga la
-    // dirección de retorno. Esa dirección será nuestro trampolín.
     uint8_t *stackTop = (uint8_t *)p->stackBase + p->stackSize;
-    // stackTop = (uint8_t *)(((uintptr_t)stackTop) & ~((uintptr_t)0xF));
-    // StackFrame *frame = (StackFrame *)(stackTop - sizeof(StackFrame));
-
-    // memset(frame, 0, sizeof(StackFrame));
 
     uint8_t *readyRsp = initStack(stackTop, (void *)Entry, Argc, Argv);
-
-    // frame->rip = (uint64_t)&processBootstrap;
-    // frame->cs = KERNEL_CS;
-    // frame->rflags = INITIAL_RFLAGS;
-    // frame->rsp = (uint64_t)stackTop;
-    // frame->ss = KERNEL_SS;
 
     p->ctx = (uint64_t)readyRsp;
 
@@ -175,11 +157,6 @@ void exitCurrentProcess(int exitCode)
         }
     }
 
-    // Importante: no liberar aquí la pila del proceso actual.
-    // Estamos ejecutando en el contexto (y pila) del proceso saliente
-    // dentro del syscall. Liberar su stack en este punto corrompe la
-    // ejecución antes de conmutar. Dejamos la liberación para otros
-    // caminos (ej. killProcess) o un reaper futuro.
     currentProcess->entry = NULL;
     currentProcess->Arg = NULL;
     currentProcess->state = TERMINATED;
@@ -188,7 +165,6 @@ void exitCurrentProcess(int exitCode)
     availableProcesses++;
     currentPid = 0;
 
-    // Desbloquear al proceso que estuviera esperando (si aplica)
     int waiter = currentProcess->waiterPid;
     currentProcess->waiterPid = -1;
     if (waiter > 0)
@@ -202,8 +178,7 @@ int killProcess(int pid)
 {
     if (pid <= 0)
         return -1;
-    
-    // Si se intenta matar a sí mismo, delegar en exitCurrentProcess
+
     if (pid == currentPid)
     {
         exitCurrentProcess(0);
@@ -226,16 +201,12 @@ int killProcess(int pid)
                 unschedule(victim);
             }
 
-            // Despertar al waiter (si hay)
             if (victim->waiterPid > 0)
             {
                 unblockProcess(victim->waiterPid);
                 victim->waiterPid = -1;
             }
 
-            // Si el proceso a matar es a su vez un waiter de otro proceso,
-            // evitamos que quede una referencia colgante al PID muerto
-            // (que puede reusarse) limpiando cualquier waiterPid igual a victim->pid.
             for (int j = 0; j < MAX_PROCESSES; j++)
             {
                 if (processTable[j].pid != 0 && processTable[j].waiterPid == victim->pid)
@@ -244,7 +215,6 @@ int killProcess(int pid)
                 }
             }
 
-            // Liberar stack si corresponde
             if (victim->stackBase)
             {
                 freeMemory(victim->stackBase);
@@ -252,7 +222,6 @@ int killProcess(int pid)
                 victim->stackSize = 0;
             }
 
-            // Cerrar FDs abiertos del proceso víctima
             for (int j = 0; j < MAX_FD; j++)
             {
                 if (victim->fdTable[j] != NULL)
@@ -289,9 +258,6 @@ int toggleProcessBlock(int pid)
             continue;
         }
 
-        // Si intentamos bloquear al proceso actual (RUNNING), lo marcamos
-        // como BLOCKED y conmutamos inmediatamente. No hace falta unschedule
-        // porque el RUNNING no está en la ready queue.
         if (pid == currentPid && process->state == RUNNING)
         {
             process->state = BLOCKED;
@@ -335,7 +301,6 @@ int unblockProcess(int pid)
         process->state = READY;
         schedulerAddProcess(process);
     }
-    // si no estaba bloqueado, no hacemos nada pero no es error
     return 0;
 }
 
@@ -536,7 +501,6 @@ void killProcessTree(int pid)
     killProcess(pid);
 }
 
-// Bloquea el proceso actual
 void blockCurrentProcess(void)
 {
     Process *self = getCurrentProcess();

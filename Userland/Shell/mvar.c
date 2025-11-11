@@ -1,14 +1,5 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
-/*
- * Standalone MVar test command.
- * - Each invocation creates unique semaphores so multiple runs don't clash.
- * - Writers push letters into a bounded buffer protected by mutex semaphores.
- * - Readers keep a fixed ANSI color each and consume letters in random order
- *   thanks to the shared buffer plus priority bias/yielding.
- * - Process priority influences how aggressively each participant yields,
- *   so `nice` changes take effect without starving the rest.
- */
 
 #include "mvar.h"
 
@@ -41,7 +32,6 @@ static const char *mvarReaderColors[] = {
     "\e[0;94m",  // Bright blue
 };
 
-// Bounded buffer that all shell processes can access.
 static volatile char mvarBuffer[MVAR_BUFFER_SIZE];
 static volatile int mvarWritePos = 0;
 static volatile int mvarReadPos = 0;

@@ -18,7 +18,6 @@ void wc_entry(uint64_t argc, char **argv)
     int lineCount = 0;
     int n;
     
-    // Read from stdin one byte at a time and count newlines
     while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
     {
         if (buf[0] == '\n')
@@ -27,9 +26,6 @@ void wc_entry(uint64_t argc, char **argv)
         }
     }
     
-    // When read returns <= 0 (EOF or error), print the count
-    // n == 0: normal EOF (writer closed pipe)
-    // n < 0: error (e.g., broken pipe, interrupted syscall)
     printf("%d\n", lineCount);
     
     exitProcess(0);

@@ -31,9 +31,7 @@ void sleepTicks(uint64_t sleep_t) {
 	unsigned long start = ticks;
 	unsigned long target = start + sleep_t;
 
-	// Yield activo: ceder control periódicamente mientras esperamos
 	while (ticks < target) {
-		// Ceder control al scheduler para que otros procesos puedan ejecutarse
 		_hlt();
 	}
 }

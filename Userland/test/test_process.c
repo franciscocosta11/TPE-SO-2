@@ -70,7 +70,6 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
 
   while (1) {
 
-    // Create max_processes processes
     for (rq = 0; rq < max_processes; rq++) {
       p_rqs[rq].pid = createProcess("endless_loop", endless_loop_entry, 0, 0, 0, 0, 0, 0);
 
@@ -83,7 +82,6 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
       }
     }
 
-    // Randomly kills, blocks or unblocks processes until every one has been killed
     while (alive > 0) {
 
       for (rq = 0; rq < max_processes; rq++) {
@@ -120,7 +118,6 @@ int64_t test_processes(uint64_t argc, char *argv[]) {
         }
       }
 
-      // Randomly unblocks processes
       for (rq = 0; rq < max_processes; rq++)
         if (p_rqs[rq].state == TEST_STATE_BLOCKED && GetUniform(100) % 2) {
           if (unblockProcess(p_rqs[rq].pid) < 0) {

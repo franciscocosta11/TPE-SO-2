@@ -11,7 +11,7 @@
 extern int currentPid; // el primer proceso current va a ser el primero en inicializarse
 extern int availableProcesses;
 
-#define MAX_PROCESSES 16
+#define MAX_PROCESSES 64
 #define MIN_PRIORITY PROCESS_PRIORITY_MIN
 #define MAX_PRIORITY PROCESS_PRIORITY_MAX
 #define IDLE_PID PROCESS_IDLE_PID

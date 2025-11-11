@@ -16,9 +16,6 @@
 #include "console.h"
 #include "semaphore.h"
 
-// extern uint8_t text;
-// extern uint8_t rodata;
-// extern uint8_t data;
 extern uint8_t bss;
 extern uint8_t endOfKernelBinary;
 extern uint8_t endOfKernel;
@@ -85,7 +82,6 @@ int main()
 	Process *shellProc = createProcess("shell", shellEntryPoint, shellArgs, 1, NULL, 0, 0, FOREGROUND);
 	if (shellProc != NULL)
 	{
-		// Asignar FDs por defecto de la consola a la shell
 		shellProc->fdTable[0] = createConsoleIn();
 		shellProc->fdTable[1] = createConsoleOut();
 		shellProc->fdTable[2] = createConsoleErr();
@@ -93,7 +89,6 @@ int main()
 
 	_sti();
 
-	// Si por algún motivo no había procesos listos, continuamos aquí
 	setFontSize(2);
 
 	contextSwitch();

@@ -22,10 +22,8 @@ void filter_entry(uint64_t argc, char **argv)
     char buf[1];
     int n;
     
-    // Read from stdin one byte at a time and filter out vowels
     while ((n = sys_read(FD_STDIN, buf, sizeof(buf))) > 0)
     {
-        // Only write the character if it's not a vowel
         if (!is_vowel(buf[0]))
         {
             sys_write(FD_STDOUT, buf, 1);
